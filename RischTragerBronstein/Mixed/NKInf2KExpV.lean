@@ -1,0 +1,263 @@
+import RischTragerBronstein.Mixed.NKInf2Exp
+import RischTragerBronstein.Mixed.NKInf2K
+import RischTragerBronstein.Mixed.NKInf2KExp
+import RischTragerBronstein.Mixed.NKInfRVExpGD
+
+/-!
+# Exponential levels, non-constant curves, two places at infinity: gauge and rescaling
+
+As `nk_iffET2K`, with the exact-part test `exactTLEVG` (constant gauge at infinity, rescaled basis,
+no logarithmic parameters) instead of `exactT`: the regime of curves whose limit matrix at
+infinity is not triangular in the given basis (e.g. split places with leading coefficients `±1`).
+`nk_iffET2KV`, `nk_decidesET2KV`.
+-/
+
+open Polynomial IntermediateField
+
+set_option linter.unusedSectionVars false
+
+namespace Curves.MT
+
+open CPoly Sup Curves.LT Tower.Sys Tower.NestP Tower.NestM Differential GTors
+
+universe u
+
+variable {Fc : BPoly ℚ} [Fact (Irreducible (toPoly (fKc Fc)))] {ks : (m : ℕ) → KindC m}
+  {lv : (m : ℕ) → LC m}
+variable {Cc L : Type u} [Field Cc] [Field L] [Algebra Cc L] [Differential Cc]
+  [Differential L] [DifferentialAlgebra Cc L] [CharZero Cc] [CharZero L]
+
+namespace MTower
+
+variable (T : MTower Fc ks Cc L)
+
+set_option maxHeartbeats 16000000 in
+/-- **`⇒`**: an elementary `f` has an exact `f − τ(f)/n` and an elementary `τ(f)/n` (the
+logarithmic part of a Liouville form lies in `Fₘ`, and `τ` is `n` on `Fₘ`). -/
+theorem nk_necessaryET2KV (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree = cvN Fc) (m : ℕ)
+    (hn : T.n = m + 1) (hc : certC Fc ks lv (m + 1) = true) {a : LC m} (hk : ks m = .exp a)
+    (Pp : List (GPoly (LC m))) (qE : GPoly (LC m)) (csE : List (GPoly (LC m)))
+    (sE tE s2E t2E : GPoly (LC m)) (hck : eisCk Fc ks m Pp qE csE sE tE s2E t2E = true)
+    (hn0 : 0 < Pp.length) (hsh0 : nkShape0 Fc ks m Pp = true)
+    (ha0K : (toB (trCurveK Fc m Pp)).coeff 0 ≠ 0) (k0 M : ℕ)
+    (hinv : InvOK k0 M 0 (shiftB (trCurveK Fc m Pp) 0))
+    (hGm : (toB (invB (shiftB (trCurveK Fc m Pp) 0) k0 M)).Monic)
+    (hGn : (toB (invB (shiftB (trCurveK Fc m Pp) 0) k0 M)).natDegree = Pp.length)
+    (hcert : TwoPlaceCertK (KF Fc m) (invB (shiftB (trCurveK Fc m Pp) 0) k0 M)) (θ : L)
+    (hθ : θ ^ Pp.length + ∑ i ∈ Finset.range Pp.length, T.evP m (Pp.getD i []) * θ ^ i = 0)
+    (hgen : ∀ z : L, z ∈ IntermediateField.adjoin (T.F (m + 1)) {θ})
+    (s : List (LC (m + 1))) (hs : traceC Fc ks m (nkPC Fc ks m Pp) s = true)
+    (fp : List (GPoly (LC m))) (Tc Ti : List (List (LC (m + 1)))) (res : Bool)
+    (dg : List (ℚ × ℚ × LC m)) (Cg Cgi : List (List (LC m))) (r : ℕ → ℤ) (C Ci : List (List (LC m)))
+    (dg0 : List (ℚ × ℚ × LC m))
+    (hres : exactTLEVG Fc ks m a (prdeC Fc ks lv m) dg Cg Cgi r C Ci dg0 (nkPC Fc ks m Pp) Tc Ti
+      (nkRest Fc ks m (nkFl Fc ks m fp) (nkTau Fc ks m Pp.length (nkFl Fc ks m fp) s)) [] = some res)
+    (hf : HasElementaryIntegral (∑ j ∈ Finset.range Pp.length, T.evP m (fp.getD j []) * θ ^ j)) :
+    res = true ∧
+      HasElementaryIntegral (T.ev (m + 1) (nkTau Fc ks m Pp.length (nkFl Fc ks m fp) s)) := by
+  classical
+  set n := Pp.length with hnn
+  set f := ∑ j ∈ Finset.range n, T.evP m (fp.getD j []) * θ ^ j with hfdef
+  set q := nkTau Fc ks m n (nkFl Fc ks m fp) s with hq
+  have MS := T.mspecs hmon hdeg lv (m + 1) (by omega) hc
+  have hTr : T.Tr (m + 1) := MS.hyp.tr
+  have hcm : certC Fc ks lv m = true := by
+    rw [certX_succ, Bool.and_eq_true] at hc; exact hc.1
+  obtain ⟨E₁, _, _, _, _, hE₁, g, hg⟩ := hf
+  haveI : CharZero E₁ := charZero_of_injective_algebraMap (algebraMap L E₁).injective
+  obtain ⟨ι, s', c, u, v, hdata, hv, heqL⟩ := liouville_strong hE₁ _ g hg
+  -- the tower in `E₁`
+  obtain ⟨TE, hTEn, hTEts, hTEev, hTEmem⟩ := T.exists_lift E₁
+  set ψ := algebraMap L E₁ with hψ
+  have MSE := TE.mspecs hmon hdeg lv (m + 1) (by omega) hc
+  have hTE : TE.Tr (m + 1) := MSE.hyp.tr
+  have hTEm : TE.Tr m := hTE.of_succ
+  have MSEm := TE.mspecs hmon hdeg lv m (by omega) hcm
+  have hPE : ∀ P : GPoly (LC m), TE.evP m P = ψ (T.evP m P) := fun P ↦ by
+    rw [← TE.sem_poly_code m hTE, ← T.sem_poly_code m hTr]
+    exact (TE.sem_MP (m + 1) hTE _).trans ((hTEev (m + 1) _).trans
+      (congrArg ψ (T.sem_MP (m + 1) hTr _).symm))
+  have hθE : (ψ θ) ^ n + ∑ i ∈ Finset.range n, TE.evP m (Pp.getD i []) * (ψ θ) ^ i = 0 := by
+    simp only [hPE, ← map_pow, ← map_mul, ← map_sum, ← map_add, hθ, map_zero]
+  -- the curve over `C₁ = Fₘ` of the lifted tower
+  set S₁ := TE.nkCurveE m hTE Pp qE csE sE tE s2E t2E hck (ψ θ) hθE with hS₁
+  have hS₁F : S₁.F.natDegree = n := polyF_natDegree _ _
+  set η₁ : TE.F m := (TE.val m a)′ with hη₁
+  have hx : S₁.x′ = aeval S₁.x (Polynomial.C η₁ * X) := by
+    rw [map_mul, aeval_C, aeval_X]
+    change (TE.ts m)′ = _
+    rw [TE.ht m (by omega), hk]
+    rfl
+  have hnd : ∀ α : AlgebraicClosure (TE.F m), α ≠ 0 →
+      α′ ≠ ((Polynomial.C η₁ * X).map (algebraMap (TE.F m) (AlgebraicClosure (TE.F m)))).eval α :=
+    fun α hα ↦ by
+      rw [Polynomial.map_mul, Polynomial.map_C, Polynomial.map_X, eval_mul, eval_C, eval_X]
+      refine not_exp_of_integral η₁ (fun dd hdd z hz h ↦ ?_) α (Algebra.IsIntegral.isIntegral α) hα
+      have := MSE.hyp.hom m (by omega) a hk (-(dd : ℤ)) (by omega) z hz
+      apply this
+      rw [h, show TE.val m a = TE.val m a from rfl]
+      push_cast
+      ring
+  have hK : ∀ c : TE.F m, (algebraMap (TE.F m) (AlgebraicClosure (TE.F m)) c)′ =
+      algebraMap (TE.F m) (AlgebraicClosure (TE.F m)) c′ := fun c ↦ deriv_algebraMap c
+  have hconstC : ∀ z : E₁, z′ = 0 → z ∈ Set.range (algebraMap (TE.F m) E₁) := fun z hz ↦ by
+    obtain ⟨c0, hc0⟩ := TE.hconst z hz
+    exact ⟨⟨z, hc0 ▸ TE.const_mem m c0⟩, rfl⟩
+  set T₁ := (TE.F m)⟮S₁.x⟯⟮S₁.y⟯ with hT₁
+  have hxT : ∀ w ∈ TE.F (m + 1), w ∈ T₁ := fun w hw ↦
+    IntermediateField.algebraMap_mem T₁ (⟨w, (TE.mem_F_succ).mp hw⟩ : (TE.F m)⟮S₁.x⟯)
+  have hLT : ∀ z : L, ψ z ∈ T₁ := by
+    intro z
+    have hz := hgen z
+    induction hz using IntermediateField.adjoin_induction with
+    | mem w hw =>
+      rw [Set.mem_singleton_iff] at hw
+      subst hw
+      exact mem_adjoin_simple_self _ _
+    | algebraMap w => exact hxT _ (hTEmem (m + 1) _ w.2)
+    | add w₁ w₂ _ _ h₁ h₂ => rw [map_add]; exact add_mem h₁ h₂
+    | mul w₁ w₂ _ _ h₁ h₂ => rw [map_mul]; exact mul_mem h₁ h₂
+    | inv w _ h₁ => rw [map_inv₀]; exact inv_mem h₁
+  have hCT : ∀ w ∈ Differential.constField L E₁, w ∈ T₁ := by
+    intro w hw
+    induction hw using IntermediateField.adjoin_induction with
+    | mem w hw =>
+      obtain ⟨c0, hc0⟩ := hconstC w hw
+      rw [← hc0]
+      exact S₁.const_mem c0
+    | algebraMap z => exact hLT z
+    | add w₁ w₂ _ _ h₁ h₂ => exact add_mem h₁ h₂
+    | mul w₁ w₂ _ _ h₁ h₂ => exact mul_mem h₁ h₂
+    | inv w _ h₁ => exact inv_mem h₁
+  -- the integrand is a polynomial in `x, y`
+  have hψf : ψ f = ∑ j ∈ Finset.range n, TE.evP m (fp.getD j []) * (ψ θ) ^ j := by
+    simp only [hfdef, map_sum, map_mul, map_pow, hPE]
+  set Q : (TE.F m)[X][X] := ∑ j ∈ Finset.range n,
+    Polynomial.C (GPoly.toPoly (TE.MP m hTEm) (fp.getD j [])) * X ^ j with hQ
+  have hQv : S₁.evXY Q = ψ f := by
+    rw [hψf, CurveData.evXY, hQ, Polynomial.map_sum, eval_finsetSum]
+    refine Finset.sum_congr rfl fun j _ ↦ ?_
+    rw [Polynomial.map_mul, Polynomial.map_C, Polynomial.map_pow, Polynomial.map_X, eval_mul, eval_C,
+      eval_pow, eval_X]
+    congr 1
+    exact TE.aeval_toPoly (TE.MP m hTEm) (TE.sem_MP m hTEm) _
+  have hfT : ψ f ∈ T₁ := hLT f
+  have hfQ : (⟨ψ f, hfT⟩ : T₁) = S₁.evT Q := Subtype.ext (by rw [S₁.coe_evT, hQv])
+  have hreg : S₁.RegularFinite (AlgebraicClosure (TE.F m)) ⟨ψ f, hfT⟩ := by
+    rw [hfQ]; exact S₁.regularFinite_evT Q
+  have hresF : ∀ (b : AlgebraicClosure (TE.F m)), b ≠ 0 → ∀ (N : ℕ) (hN : N ≠ 0)
+      (l : List (LaurentSeries (AlgebraicClosure (TE.F m))))
+      (hl : S₁.F.map (branchSub N b) = (l.map fun r ↦ X - Polynomial.C r).prod)
+      (r : LaurentSeries (AlgebraicClosure (TE.F m))) (hr : r ∈ l) (k : ℤ), k < 1 - (N : ℤ) →
+      (S₁.embG (branchSub N b) (branchSub_injective N (Nat.pos_of_ne_zero hN) b) r
+        (S₁.root_of_mem hl hr) ⟨ψ f, hfT⟩).coeff k = 0 := by
+    intro b _ N hN l hl r hr k hk
+    apply HahnSeries.coeff_eq_zero_of_lt_order
+    have := hreg b N hN l hl r hr
+    have : (1 : ℤ) ≤ N := by exact_mod_cast Nat.pos_of_ne_zero hN
+    omega
+  have hsp0 := TE.nkShape0_spec m hTEm Pp hsh0
+  -- the logarithmic part lies in `Fₘ`
+  have heq₁ : ψ f = v′ + ∑ i ∈ s', c i * logDeriv (u i) := by rw [heqL, add_comm]
+  set ιK : KF Fc m →+* TE.F m := RingHom.codRestrict (TE.psiC m hTEm) (TE.F m)
+    (TE.psiC_mem m hTEm) with hιK
+  have hιsem : ∀ q, ιK (trC Fc m q) = (TE.MP m hTEm).sem q := fun q ↦ Subtype.ext (by
+    change TE.psiC m hTEm (trC Fc m q) = _
+    rw [TE.psiC_trC, TE.sem_MP m hTEm])
+  have hSF1 : S₁.F = (toB (trCurveK Fc m Pp)).map (mapRingHom ιK) :=
+    TE.nkF_trCurveK m hTEm ιK hιsem Pp
+  obtain ⟨hMb, hinvEq⟩ := mob_dataK ιK (trCurveK Fc m Pp) k0 M hinv S₁.F hSF1
+  have hGm' : (invP (shiftP S₁.F 0) k0 M).Monic := by rw [hinvEq]; exact hGm.map _
+  have hGn' : (invP (shiftP S₁.F 0) k0 M).natDegree = S₁.F.natDegree := by
+    rw [hinvEq, hGm.natDegree_map, hGn, hS₁F]
+  set ιF := ιK
+  have hcert' := TwoPlaceCertK.cert (mobCurve S₁ 0 k0 M hMb hGm' hGn') ιK _ hcert hinvEq
+  have hgeo' : Irreducible (S₁.F.map (mapRingHom (algebraMap (TE.F m)
+      (AlgebraicClosure (TE.F m))))) := TE.nkF_geo_of_eisCk m hTEm Pp qE csE sE tE s2E t2E hck _
+  have ha0' : S₁.F.coeff 0 ≠ 0 := by
+    rw [hSF1, coeff_map]
+    exact (map_ne_zero_iff _ (map_injective _ ιK.injective)).mpr ha0K
+  obtain ⟨ℓ₀, hℓ₀⟩ := S₁.nk_liouvilleE2 (K := AlgebraicClosure (TE.F m)) (Polynomial.C η₁ * X) hx hK
+    η₁ rfl hnd n _ hS₁F hn0 ha0' k0 M hMb hGm' hGn' hgeo' ιF hcert' hsp0.1 hsp0.2.1 hsp0.2.2
+    hconstC (ψ f) hfT hresF s' c u
+    (fun i hi ↦ (hdata i hi).1) (fun i hi ↦ ⟨(hdata i hi).2.2, hCT _ (hdata i hi).2.1⟩) v
+    (hCT v hv) heq₁
+  -- the trace
+  have hPθE : TE.evθ m hTE (ψ θ) (nkPC Fc ks m Pp) = 0 := by rw [TE.evθ_nkPC]; exact hθE
+  obtain ⟨hs0, hτ⟩ := TE.traceC_sound m hTE Pp (ψ θ) hPθE s hs
+  set M1 := TE.MPr (m + 1) hTE with hM1
+  set O1 := MOr Fc ks (m + 1) with hO1
+  have hdx : ∀ z ∈ (TE.F m)⟮S₁.x⟯, z′ ∈ (TE.F m)⟮S₁.x⟯ := fun z hz ↦ by
+    have := ((⟨z, (TE.mem_F_succ).mpr hz⟩ : TE.F (m + 1))′ : TE.F (m + 1)).2
+    rw [MTower.coe_deriv] at this
+    exact (TE.mem_F_succ).mp this
+  obtain ⟨w, hw, hwe⟩ := S₁.trace_split (fun j ↦ ((M1.sem (s.getD j O1.zero) : TE.F (m + 1)) : E₁))
+    (fun j ↦ (TE.mem_F_succ).mp (M1.sem (s.getD j O1.zero)).2)
+    (by rw [hS₁F, hs0]; push_cast; rfl)
+    (fun i hi ↦ by
+      rw [hS₁F] at hi ⊢
+      obtain ⟨c', hc'd, hc's⟩ := hτ i hi
+      refine ⟨fun j ↦ (c' j : E₁), fun j ↦ (TE.mem_F_succ).mp (c' j).2, hc'd, ?_⟩
+      have := congrArg (fun z : TE.F (m + 1) ↦ (z : E₁)) hc's
+      simp only [AddSubmonoidClass.coe_finsetSum, IntermediateField.coe_mul,
+        MTower.coe_deriv] at this
+      exact this)
+    hdx (fun j ↦ TE.evP m (fp.getD j [])) (fun j ↦ (TE.mem_F_succ).mp (TE.evP_mem m (TE.ev_mem m) _))
+    v (hCT v hv) (algebraMap (TE.F m) E₁ ℓ₀) (IntermediateField.algebraMap_mem _ ℓ₀)
+    (by
+      rw [hS₁F]
+      change ∑ j ∈ Finset.range n, TE.evP m (fp.getD j []) * (ψ θ) ^ j = _
+      rw [← hψf]; exact hℓ₀)
+  rw [hS₁F] at hwe
+  -- `ψ (τ(f)/n)`
+  have hqv : ψ (T.ev (m + 1) q) = (∑ j ∈ Finset.range n, TE.evP m (fp.getD j []) *
+      ((M1.sem (s.getD j O1.zero) : TE.F (m + 1)) : E₁)) / n := by
+    rw [← hTEev (m + 1) q, ← TE.coe_sem_MPr (m + 1) hTE q, hq, TE.sem_nkTau m n hTE]
+    push_cast
+    rw [div_eq_mul_inv]
+    congr 1
+    refine Finset.sum_congr rfl fun j _ ↦ ?_
+    rw [TE.sem_nkFl m hTE fp j]
+  have hlog : algebraMap (TE.F m) E₁ ℓ₀ = ∑ i ∈ s', c i * logDeriv (u i) := by
+    have := hℓ₀.symm.trans heq₁
+    exact add_left_cancel this
+  refine ⟨?_, ?_⟩
+  · ----------------------------------------------------------------------------------------------
+    -- the exact part in the lifted tower
+    have hvw : v - w ∈ T₁ := sub_mem (hCT v hv) (IntermediateField.algebraMap_mem T₁
+      (⟨w, hw⟩ : (TE.F m)⟮S₁.x⟯))
+    obtain ⟨Y', hY'm, hY'⟩ := S₁.exists_coords (v - w) hvw
+    rw [hS₁F] at hY'
+    have hlen := length_nkPC (Fc := Fc) (ks := ks) m Pp
+    have hind : ∀ a : ℕ → TE.F (m + 1), ∑ j ∈ Finset.range ((nkPC Fc ks m Pp).length - 1),
+        (a j : E₁) * (ψ θ) ^ j = 0 → ∀ j < (nkPC Fc ks m Pp).length - 1, a j = 0 := by
+      rw [hlen]; exact TE.nkCurveE_ind m hTE Pp qE csE sE tE s2E t2E hck (ψ θ) hθE
+    obtain ⟨hrdeE, homE⟩ := TE.expTEV_specs hmon hdeg m (by rw [hTEn]; exact hn) hc hk
+    have hiff := TE.exactTLEVG_correct m hTE (by rw [hTEn, hn]; omega) hk (hTE m (by omega))
+      (prdeC Fc ks lv m) hrdeE homE dg Cg Cgi r C Ci dg0 (nkPC Fc ks m Pp) _ (ψ θ) hPθE hind Tc Ti []
+      res hres
+    refine hiff.mpr ⟨fun _ ↦ 0, fun i ↦ ⟨Y' i, (TE.mem_F_succ).mpr (hY'm i)⟩, ?_⟩
+    rw [hlen]
+    simp only [List.length_nil, Finset.range_zero, Finset.sum_empty, sub_zero]
+    rw [TE.sum_nkRest m hTE n hn0, hTEev (m + 1) q]
+    change (∑ i ∈ Finset.range n, Y' i * S₁.y ^ i)′ = _
+    rw [← hY', ← hψf, hqv, hwe, map_sub, hℓ₀]
+    ring
+  · ----------------------------------------------------------------------------------------------
+    -- `τ(f)/n` has a Liouville form in `E₁`
+    set l : List (E₁ × E₁) := s'.toList.map fun i ↦ (c i, u i) with hl0
+    have hl : ∀ p ∈ l, p.1′ = 0 ∧ p.2 ≠ 0 := by
+      intro p hp
+      obtain ⟨i, hi, rfl⟩ := List.mem_map.mp hp
+      rw [Finset.mem_toList] at hi
+      exact ⟨(hdata i hi).1, (hdata i hi).2.2⟩
+    have hform := hasElementaryIntegral_of_liouville_form w l hl
+    have hsumeq : w′ + (l.map fun p ↦ p.1 * logDeriv p.2).sum = ψ (T.ev (m + 1) q) := by
+      rw [hqv, hwe, hlog, hl0, List.map_map, Finset.sum_map_toList]
+      rfl
+    rw [hsumeq] at hform
+    exact HasElementaryIntegral.of_extension hE₁ hform
+
+end MTower
+
+end Curves.MT

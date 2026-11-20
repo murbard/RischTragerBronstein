@@ -1,0 +1,150 @@
+import RischTragerBronstein.Computable.ExpPrimLaurentPositive
+import RischTragerBronstein.Computable.RDENonCancelModel
+
+/-!
+# The non-cancellation solver read in `F₀ = R(x₀)(t₁)`, and the Laurent antiderivative it produces
+
+`rdeNC_sound_F₀`: the solution `Y / D` of `y′ + g y = A / D` (`g ∈ R(x)[t₁]` a polynomial code)
+read in an abstract field `F₀ ⊇ R` with `x₀′ = 1`, `t₁′ = η₁(x₀)`;
+`expArgPrimLaurent_antiderivative`: with `t′ = a′ t` in `K ⊇ F₀` (`a′` the value of the code
+`ηc`), `∑_{j ≠ n} (Yⱼ / Dⱼ) t^j / t^n` is an antiderivative of the Laurent part.
+-/
+
+open Polynomial IntermediateField
+
+set_option linter.unusedSectionVars false
+
+namespace Tower
+
+open Differential CPoly
+
+variable {R F₀ : Type*} [Field R] [DecidableEq R] [CharZero R] [Field F₀]
+variable [Algebra R F₀] [Differential F₀]
+
+set_option maxHeartbeats 1600000 in
+
+theorem rdeNC_sound_F₀ (hR : ∀ r : R, (algebraMap R F₀ r)′ = 0)
+    (x₀ t₁ : F₀) (hx₀ : x₀′ = 1) {En₁ Ed₁ : CPoly R}
+    (ht₁ : t₁′ = aeval x₀ (toPoly En₁) / aeval x₀ (toPoly Ed₁))
+    {Iη₁ : RationalIntegral R} (hcη₁ : rationalCheck En₁ Ed₁ Iη₁ = true)
+    (hη₁0 : isZero Iη₁.r = false) (z : ℤ) (ηc A D : GPoly (GFrac R))
+    (hD0 : GPoly.isZero (ops₁g R) D = false) {Y : GPoly (GFrac R)}
+    (h : GPoly.rdeNC (ops₁g R) [(En₁, Ed₁)] (GPoly.smul (ops₁g R) (constZ z) ηc) A D = some Y) :
+    (valP x₀ t₁ Y / valP x₀ t₁ D)′ + (z : F₀) * valP x₀ t₁ ηc * (valP x₀ t₁ Y / valP x₀ t₁ D) =
+      valP x₀ t₁ A / valP x₀ t₁ D := by
+  classical
+  have hcharF₀ : CharZero F₀ := charZero_of_injective_algebraMap (algebraMap R F₀).injective
+  let _ : Differential R := ⟨0⟩
+  have h0 : ∀ r : R, r′ = 0 := fun _ ↦ rfl
+  have hDAR : DifferentialAlgebra R F₀ := ⟨fun r ↦ by rw [hR, h0, map_zero]⟩
+  -- level one: `R(x₀) ⊆ F₀`
+  have htr : Transcendental R x₀ :=
+    transcendental_of_deriv_ne_zero h0 (by rw [hx₀]; exact one_ne_zero)
+  have hw : x₀′ = aeval x₀ (1 : R[X]) := by rw [hx₀, map_one]
+  let _ := algebraAdjoinSimple (F := R) x₀
+  let _ : Differential R[X] := polynomialOfDeriv (1 : R[X])
+  let _ : Differential R⟮x₀⟯ := differentialOfDerivClosed (derivClosed_adjoin_simple x₀ 1 hw)
+  have hFR : IsFractionRing R[X] R⟮x₀⟯ := isFractionRing_adjoin_simple x₀ htr
+  have hDA : DifferentialAlgebra R[X] R⟮x₀⟯ := differentialAlgebra_adjoin_simple x₀ 1 hw
+  have hDA' : DifferentialAlgebra R⟮x₀⟯ F₀ :=
+    differentialAlgebra_of_derivClosed (derivClosed_adjoin_simple x₀ 1 hw)
+  have hchar1 : CharZero R⟮x₀⟯ := charZero_of_injective_algebraMap (algebraMap R R⟮x₀⟯).injective
+  have hD : ∀ P : R[X], P′ = derivative P := fun P ↦ implicitDeriv_one_of_trivial h0 P
+  have hcoe : ∀ P : R[X], ((algebraMap R[X] R⟮x₀⟯ P : R⟮x₀⟯) : F₀) = aeval x₀ P :=
+    algebraMap_adjoinSimple x₀
+  have hevc : ∀ q : CPoly R × CPoly R, algebraMap R⟮x₀⟯ F₀ (ev R⟮x₀⟯ (RingHom.id R) q) =
+      aeval x₀ (toPoly q.1) / aeval x₀ (toPoly q.2) := fun q ↦ by
+    change ((ev R⟮x₀⟯ (RingHom.id R) q : R⟮x₀⟯) : F₀) = _
+    simp only [ev, Polynomial.map_id, IntermediateField.coe_div, hcoe]
+  set η₁' : R⟮x₀⟯ := ev R⟮x₀⟯ (RingHom.id R) (En₁, Ed₁) with hη₁'
+  obtain ⟨hdec₁, hsq₁, hdeg₁⟩ :=
+    rationalCheck_sound_map (K := R⟮x₀⟯) (RingHom.id R) hD En₁ Ed₁ Iη₁ hcη₁
+  have hrη0 : (toPoly Iη₁.r).map (RingHom.id R) ≠ 0 := by
+    rw [Polynomial.map_id, Ne, ← isZero_iff, hη₁0]
+    exact Bool.noConfusion
+  have hη₁nd : ∀ y : R⟮x₀⟯, y′ ≠ η₁' := fun y hy ↦ hrη0 <| by
+    refine eq_zero_of_deriv_eq_proper_fraction (K := R⟮x₀⟯) hD _ _ hsq₁ hdeg₁
+      (y - (algebraMap R[X] R⟮x₀⟯ ((toPoly Iη₁.gn).map (RingHom.id R)) /
+        algebraMap R[X] R⟮x₀⟯ ((toPoly Iη₁.gd).map (RingHom.id R)) +
+        algebraMap R[X] R⟮x₀⟯ ((toPoly Iη₁.Q).map (RingHom.id R)))) ?_
+    rw [deriv_sub', hy, hη₁', ev, hdec₁]
+    ring
+  -- level two: `R(x₀)(t₁) ⊆ F₀`
+  have ht₁' : t₁′ = algebraMap R⟮x₀⟯ F₀ η₁' := by rw [ht₁, hη₁', hevc]
+  have htr1 : Transcendental R⟮x₀⟯ t₁ := transcendental_primitive η₁' ht₁' hη₁nd
+  have hw1 : t₁′ = aeval t₁ (C η₁' : (R⟮x₀⟯)[X]) := by rw [aeval_C, ht₁']
+  let _ := algebraAdjoinSimple (F := R⟮x₀⟯) t₁
+  let _ : Differential (R⟮x₀⟯)[X] := polynomialOfDeriv (C η₁')
+  let _ : Differential (R⟮x₀⟯)⟮t₁⟯ :=
+    differentialOfDerivClosed (derivClosed_adjoin_simple t₁ (C η₁') hw1)
+  have hFR2 : IsFractionRing (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ := isFractionRing_adjoin_simple t₁ htr1
+  have hDA2 : DifferentialAlgebra (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ :=
+    differentialAlgebra_adjoin_simple t₁ (C η₁') hw1
+  have hST : IsScalarTower R⟮x₀⟯ (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ :=
+    IsScalarTower.of_algebraMap_eq fun a ↦ by
+      apply Subtype.ext
+      rw [Polynomial.algebraMap_eq, algebraMap_adjoinSimple, aeval_C]
+      rfl
+  have hDA12 : DifferentialAlgebra R⟮x₀⟯ (R⟮x₀⟯)⟮t₁⟯ := ⟨fun a ↦ Subtype.ext rfl⟩
+  have hM : ModelW (K₁ := R⟮x₀⟯) (K₂ := (R⟮x₀⟯)⟮t₁⟯) (RingHom.id R) En₁ Ed₁ :=
+    ModelW.of (RingHom.id R) hD (fun _ ↦ rfl) hη₁nd
+  have hEd₁ : toPoly Ed₁ ≠ 0 := by
+    have hc := hcη₁
+    rw [rationalCheck, Bool.and_eq_true] at hc
+    exact ((hermiteCheck_iff _ _ _).mp hc.1).1
+  have hD0' : GPoly.toPoly (M₁In (K₁ := R⟮x₀⟯) (RingHom.id R) h0 hD) D ≠ 0 := fun hz ↦ by
+    rw [(GPoly.isZero_iff (M₁In (K₁ := R⟮x₀⟯) (RingHom.id R) h0 hD) D).mpr hz] at hD0
+    exact Bool.noConfusion hD0
+  -- values of codes in `F₀`
+  have hvalP : ∀ q : GPoly (GFrac R), ((algebraMap (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯
+      (GPoly.toPoly (M₁In (K₁ := R⟮x₀⟯) (RingHom.id R) h0 hD) q) : (R⟮x₀⟯)⟮t₁⟯) : F₀) =
+      valP x₀ t₁ q := fun q ↦ by
+    rw [algebraMap_adjoinSimple, GPoly.toPoly_eq_sum_range _ q ([], [1])]
+    simp only [valP, map_sum, map_mul, map_pow, aeval_C, aeval_X, sem_M₁In, hevc]
+  have hDW : ∀ P : (R⟮x₀⟯)[X], P′ = implicitDeriv (GPoly.toPoly (M₁In (K₁ := R⟮x₀⟯) (RingHom.id R)
+      h0 hD) [(En₁, Ed₁)]) P := fun P ↦ by
+    rw [GPoly.toPoly_cons, GPoly.toPoly_nil, mul_zero, add_zero, sem_M₁In]
+    rfl
+  have hsound := rdeNC_sound_model (K₁ := R⟮x₀⟯) (K₂ := (R⟮x₀⟯)⟮t₁⟯) (RingHom.id R) h0 hD
+    [(En₁, Ed₁)] (GPoly.smul (ops₁g R) (constZ z) ηc) A D hDW hD0' h
+  rw [GPoly.toPoly_smul, sem_constZ, map_mul] at hsound
+  have hzF : ((algebraMap (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ (C (z : R⟮x₀⟯)) : (R⟮x₀⟯)⟮t₁⟯) : F₀) = (z : F₀) := by
+    rw [algebraMap_adjoinSimple, aeval_C]
+    simp
+  have := congrArg (fun z : (R⟮x₀⟯)⟮t₁⟯ ↦ (z : F₀)) hsound
+  have hderiv : ∀ y : (R⟮x₀⟯)⟮t₁⟯, ((y′ : (R⟮x₀⟯)⟮t₁⟯) : F₀) = (y : F₀)′ := fun _ ↦ rfl
+  simp only [hderiv, IntermediateField.coe_add, IntermediateField.coe_div, MulMemClass.coe_mul,
+    hvalP, hzF] at this
+  exact this
+
+variable {K : Type*} [Field K] [Algebra F₀ K] [Differential K] [DifferentialAlgebra F₀ K]
+
+/-- **The Laurent part is integrated**: `W = ∑_{j ≠ n} (Yⱼ / Dⱼ) t₂^j / t₂^n`. -/
+theorem expArgPrimLaurent_antiderivative (hR : ∀ r : R, (algebraMap R F₀ r)′ = 0)
+    (x₀ t₁ : F₀) (hx₀ : x₀′ = 1) {En₁ Ed₁ : CPoly R}
+    (ht₁ : t₁′ = aeval x₀ (toPoly En₁) / aeval x₀ (toPoly Ed₁))
+    {Iη₁ : RationalIntegral R} (hcη₁ : rationalCheck En₁ Ed₁ Iη₁ = true)
+    (hη₁0 : isZero Iη₁.r = false) (ηc : GPoly (GFrac R)) (t : K) (ht0 : t ≠ 0)
+    (ht : t′ = algebraMap F₀ K (valP x₀ t₁ ηc) * t)
+    (N n : ℕ) (A : ℕ → GFrac (GFrac R)) (Y : ℕ → GPoly (GFrac R))
+    (hD0 : ∀ j < N, GPoly.isZero (ops₁g R) (A j).2 = false)
+    (hsome : ∀ j < N, j ≠ n → GPoly.rdeNC (ops₁g R) [(En₁, Ed₁)]
+      (GPoly.smul (ops₁g R) (constZ ((j : ℤ) - n)) ηc) (A j).1 (A j).2 = some (Y j)) :
+    (∑ j ∈ (Finset.range N).erase n,
+        algebraMap F₀ K (valP x₀ t₁ (Y j) / valP x₀ t₁ (A j).2) * t ^ j / t ^ n)′ =
+      ∑ j ∈ (Finset.range N).erase n, algebraMap F₀ K (valG x₀ t₁ (A j)) * t ^ j / t ^ n := by
+  have hcharF₀ : CharZero F₀ := charZero_of_injective_algebraMap (algebraMap R F₀).injective
+  have hcharK : CharZero K := charZero_of_injective_algebraMap (algebraMap F₀ K).injective
+  rw [map_sum]
+  refine Finset.sum_congr rfl fun j hj ↦ ?_
+  obtain ⟨hjn, hjN⟩ := Finset.mem_erase.mp hj
+  have hjN' := Finset.mem_range.mp hjN
+  have hsol := rdeNC_sound_F₀ hR x₀ t₁ hx₀ ht₁ hcη₁ hη₁0 _ _ _ _ (hD0 j hjN')
+    (hsome j hjN' hjn)
+  have hg : (((j : ℤ) - n : ℤ) : F₀) = (j : F₀) - n := by push_cast; ring
+  rw [hg] at hsol
+  rw [deriv_mul_pow_div_pow _ t _ ht0 ht, valG, ← map_natCast (algebraMap F₀ K) j,
+    ← map_natCast (algebraMap F₀ K) n, ← map_sub, ← map_mul, deriv_algebraMap, ← map_mul,
+    ← map_add, hsol]
+
+end Tower

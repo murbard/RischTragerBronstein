@@ -1,0 +1,222 @@
+import RischTragerBronstein.Computable.RDEPrimComplete
+import RischTragerBronstein.Computable.RDEPrimW
+
+/-!
+# Completeness of `rdePrimW`
+
+If `y′ + g y = A / D` (`g ∈ R(x)`) has a solution in any model `K₂` of `S(x)(t₁)`, then `rdePrimW`
+returns one — given that the homogeneous equation `e′ + g e = 0` has only the zero solution in
+`S(x)` (`hgnl`), and the annihilator `μ` of the residues of `g`.
+-/
+
+open Polynomial Differential
+
+set_option linter.unusedSectionVars false
+
+namespace Tower
+
+variable {R S K₁ K₂ : Type*} [Field R] [DecidableEq R] [CharZero R] [Field S] [CharZero S]
+variable [Differential S] [Differential S[X]] [Field K₁] [CharZero K₁] [Algebra S[X] K₁]
+variable [IsFractionRing S[X] K₁] [Differential K₁] [DifferentialAlgebra S[X] K₁]
+variable [Differential K₁[X]] [Field K₂] [Differential K₂] [Algebra K₁[X] K₂]
+variable [IsFractionRing K₁[X] K₂] [DifferentialAlgebra K₁[X] K₂]
+variable [CPoly.HasRatRoots R] [HasNatTest R]
+
+local notation "φ" => algebraMap S[X] K₁
+local notation "φ₂" => algebraMap K₁[X] K₂
+
+variable (ι : R →+* S) (h0 : ∀ s : S, s′ = 0) (hD : ∀ P : S[X], P′ = derivative P)
+  {En₁ Ed₁ : CPoly R}
+
+/-- Uniqueness of solutions of `z′ + g z = f` when the homogeneous equation has only the zero
+solution. -/
+theorem rde_unique_of_hom {gK : K₁} (hgnl : ∀ e : K₁, e ≠ 0 → e′ + gK * e ≠ 0) (z₁ z₂ f : K₁)
+    (h₁ : z₁′ + gK * z₁ = f) (h₂ : z₂′ + gK * z₂ = f) : z₁ = z₂ := by
+  by_contra hne
+  refine hgnl (z₁ - z₂) (sub_ne_zero.mpr hne) ?_
+  rw [map_sub]; linear_combination h₁ - h₂
+
+lemma rdePolyPrimAuxW_isSome_of_zero (gq : GFrac R) (μ : CPoly R) (D P₀ : GPoly (GFrac R)) (fuel : ℕ)
+    (Ap acc : GPoly (GFrac R)) (hz : GPoly.isZero (ops₁g R) Ap = true) :
+    (rdePolyPrimAuxW En₁ Ed₁ gq μ D P₀ fuel Ap acc).isSome = true := by
+  cases fuel <;> simp [rdePolyPrimAuxW, hz]
+
+include h0 hD in
+set_option maxHeartbeats 1600000 in
+/-- **Completeness of the recursion.** -/
+theorem rdePolyPrimAuxW_complete
+    (hD₂ : ∀ P : K₁[X], P′ = implicitDeriv (C (CPoly.ev K₁ ι (En₁, Ed₁))) P)
+    (gq : GFrac R) (μ : CPoly R)
+    (hGn0 : CPoly.toPoly gq.1 ≠ 0) (hGd0 : CPoly.toPoly gq.2 ≠ 0)
+    (hcop : IsCoprime (CPoly.toPoly gq.1) (CPoly.toPoly gq.2)) (hμ0 : CPoly.toPoly μ ≠ 0)
+    (hμ : ∃ q : R[X], (CPoly.toPoly μ).comp (CPoly.toPoly (CPoly.residuePolyW gq.1 gq.2)) =
+      CPoly.toPoly (CPoly.simplePart gq.2) * q)
+    (hgnl : ∀ e : K₁, e ≠ 0 → e′ + CPoly.ev K₁ ι gq * e ≠ 0) (D P₀ : GPoly (GFrac R))
+    (hD0 : GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) D ≠ 0)
+    (hP₀ : GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) P₀ =
+      C (CPoly.ev K₁ ι gq) * GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) D -
+        (GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) D)′)
+    (fuel : ℕ) (Ap acc : GPoly (GFrac R)) (Y : K₁[X])
+    (hY : GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) D * Y′ +
+      GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) P₀ * Y = GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) Ap)
+    (hfuel : Y.natDegree < fuel) :
+    (rdePolyPrimAuxW En₁ Ed₁ gq μ D P₀ fuel Ap acc).isSome = true := by
+  set M₁ := M₁In (K₁ := K₁) ι h0 hD with hM₁
+  set gK : K₁ := CPoly.ev K₁ ι gq with hgK
+  have hhomK : ∀ y : K₁, y′ + φ ((CPoly.toPoly gq.1).map ι) / φ ((CPoly.toPoly gq.2).map ι) * y =
+      0 → y = 0 := fun y hy ↦ by
+    by_contra hy0
+    exact hgnl y hy0 hy
+  induction fuel generalizing Ap acc Y with
+  | zero => omega
+  | succ fuel ih =>
+    simp only [rdePolyPrimAuxW]
+    by_cases hz : GPoly.isZero (ops₁g R) Ap = true
+    · rw [if_pos hz]; rfl
+    rw [if_neg hz]
+    have hAp0 : GPoly.toPoly M₁ Ap ≠ 0 := fun h ↦ hz ((GPoly.isZero_iff M₁ Ap).mpr h)
+    have hY0 : Y ≠ 0 := fun h ↦ hAp0 (by rw [← hY, h]; simp)
+    rw [hP₀] at hY
+    obtain ⟨hdeg, hcoeff, -⟩ := rde_poly_top (CPoly.ev K₁ ι (En₁, Ed₁)) gK hD₂ hgnl
+      (GPoly.toPoly M₁ D) Y hD0 hY0
+    rw [hY] at hdeg hcoeff
+    have hAne : GPoly.trim (ops₁g R) Ap ≠ [] := fun h ↦ hAp0 ((GPoly.trim_eq_nil_iff M₁ Ap).mp h)
+    have hDne : GPoly.trim (ops₁g R) D ≠ [] := fun h ↦ hD0 ((GPoly.trim_eq_nil_iff M₁ D).mp h)
+    obtain ⟨hdA, hlA, -⟩ := GPoly.natDegree_toPoly_of_trim_ne_nil M₁ hAne
+    obtain ⟨hd₁, hlD, -⟩ := GPoly.natDegree_toPoly_of_trim_ne_nil M₁ hDne
+    have hlt : ¬((GPoly.trim (ops₁g R) Ap).length - 1 < (GPoly.trim (ops₁g R) D).length - 1) := by
+      rw [← hdA, ← hd₁, hdeg]; omega
+    rw [if_neg hlt]
+    -- the top coefficient
+    obtain ⟨L, hL⟩ : ∃ L, L = M₁.sem (GPoly.lead (ops₁g R) (GPoly.trim (ops₁g R) D)) := ⟨_, rfl⟩
+    obtain ⟨top, htop⟩ : ∃ t, t = M₁.sem (GPoly.lead (ops₁g R) (GPoly.trim (ops₁g R) Ap)) :=
+      ⟨_, rfl⟩
+    have hLlc : (GPoly.toPoly M₁ D).leadingCoeff = L := by
+      rw [leadingCoeff, hd₁, hlD, hL]
+    have htoplc : top = L ^ 2 * ((Y.leadingCoeff / L)′ + gK * (Y.leadingCoeff / L)) := by
+      rw [htop, ← hlA, ← hLlc, ← hcoeff, ← hdeg, hdA]
+    have hL0 : L ≠ 0 := by rw [← hLlc]; exact leadingCoeff_ne_zero.mpr hD0
+    obtain ⟨z, hz'⟩ : ∃ z, z = Y.leadingCoeff / L := ⟨_, rfl⟩
+    rw [← hz'] at htoplc
+    have hzsol : z′ + gK * z = top / L ^ 2 := by rw [htoplc]; field_simp
+    -- `rdeTopCoeffW` succeeds and returns `L z`
+    obtain ⟨Lc, hLc⟩ : ∃ c, c = GPoly.lead (ops₁g R) (GPoly.trim (ops₁g R) D) := ⟨_, rfl⟩
+    obtain ⟨tc, htc⟩ : ∃ c, c = GPoly.lead (ops₁g R) (GPoly.trim (ops₁g R) Ap) := ⟨_, rfl⟩
+    rw [← hLc] at hL
+    rw [← htc] at htop
+    rw [← hLc, ← htc]
+    have hev : ∀ q : GFrac R, M₁.sem q = φ ((CPoly.toPoly q.1).map ι) / φ ((CPoly.toPoly q.2).map ι) :=
+      fun q ↦ by rw [hM₁, sem_M₁In]; rfl
+    have hφ : ∀ {P : CPoly R}, CPoly.toPoly P ≠ 0 → φ ((CPoly.toPoly P).map ι) ≠ 0 := fun hP ↦
+      CPoly.map_toPoly_ne_zero ι hP
+    have hne' : ∀ {P : CPoly R}, φ ((CPoly.toPoly P).map ι) ≠ 0 → CPoly.toPoly P ≠ 0 :=
+      fun h hP ↦ h (by rw [hP]; simp)
+    have hL1 : CPoly.toPoly Lc.1 ≠ 0 := hne' fun h ↦ hL0 (by rw [hL, hev, h, zero_div])
+    have hL2 : CPoly.toPoly Lc.2 ≠ 0 := hne' fun h ↦ hL0 (by rw [hL, hev, h, div_zero])
+    have htop0 : top ≠ 0 := by
+      rw [htoplc]; exact mul_ne_zero (pow_ne_zero 2 hL0) (hgnl z (by
+        rw [hz']; exact div_ne_zero (leadingCoeff_ne_zero.mpr hY0) hL0))
+    have ht2 : CPoly.toPoly tc.2 ≠ 0 := hne' fun h ↦ htop0 (by rw [htop, hev, h, div_zero])
+    have hden : CPoly.toPoly (CPoly.mul (CPoly.mul tc.2 Lc.1) Lc.1) ≠ 0 := by
+      simp only [CPoly.toPoly_mul]; exact mul_ne_zero (mul_ne_zero ht2 hL1) hL1
+    have hrde : CPoly.rdeRationalW μ gq.1 gq.2 (CPoly.mul (CPoly.mul tc.1 Lc.2) Lc.2)
+        (CPoly.mul (CPoly.mul tc.2 Lc.1) Lc.1) ≠ none := fun hnone ↦
+      CPoly.rdeRationalW_complete (K := K₁) ι hD hden hGn0 hGd0 hcop hμ0 hμ hhomK hnone z (by
+        change z′ + gK * z = _
+        rw [hzsol, htop, hL, hev, hev]
+        simp only [CPoly.toPoly_mul, Polynomial.map_mul, map_mul]
+        have := hφ hL1; have := hφ hL2; have := hφ ht2
+        field_simp)
+    obtain ⟨⟨Yz, Gz⟩, hsome⟩ := Option.ne_none_iff_exists'.mp hrde
+    have htc : rdeTopCoeffW gq μ Lc tc = some ((ops₁g R).mul Lc (Yz, Gz)) := by
+      simp only [rdeTopCoeffW, hsome, Option.map_some]
+    rw [htc]
+    simp only
+    -- the returned coefficient is `L z`
+    have hsol := CPoly.rdeRationalW_sound (K := K₁) ι hD hden hGd0 hsome
+    have hz'' : φ ((CPoly.toPoly Yz).map ι) / φ ((CPoly.toPoly Gz).map ι) = z := by
+      refine rde_unique_of_hom hgnl _ _ (top / L ^ 2) ?_ hzsol
+      change (φ ((CPoly.toPoly Yz).map ι) / φ ((CPoly.toPoly Gz).map ι))′ +
+        φ ((CPoly.toPoly gq.1).map ι) / φ ((CPoly.toPoly gq.2).map ι) *
+          (φ ((CPoly.toPoly Yz).map ι) / φ ((CPoly.toPoly Gz).map ι)) = top / L ^ 2
+      rw [hsol, htop, hL, hev, hev]
+      simp only [CPoly.toPoly_mul, Polynomial.map_mul, map_mul]
+      have := hφ hL1; have := hφ hL2; have := hφ ht2
+      field_simp
+    have hyd : M₁.sem ((ops₁g R).mul Lc (Yz, Gz)) = Y.leadingCoeff := by
+      rw [M₁.sem_mul, ← hL, hev (Yz, Gz)]
+      have : φ ((CPoly.toPoly (Yz, Gz).1).map ι) / φ ((CPoly.toPoly (Yz, Gz).2).map ι) = z := hz''
+      rw [this, hz']
+      exact mul_div_cancel₀ _ hL0
+    -- recurse with `Y - lc Y * X ^ d`
+    obtain ⟨d, hd⟩ : ∃ d, d = (GPoly.trim (ops₁g R) Ap).length - 1 -
+      ((GPoly.trim (ops₁g R) D).length - 1) := ⟨_, rfl⟩
+    rw [← hd]
+    have hdY : d = Y.natDegree := by rw [hd, ← hdA, ← hd₁, hdeg]; omega
+    have hYd : GPoly.toPoly M₁ (GPoly.monomial (ops₁g R) d ((ops₁g R).mul Lc (Yz, Gz))) =
+        C Y.leadingCoeff * X ^ Y.natDegree := by
+      rw [GPoly.toPoly_monomial, hyd, hdY]
+    have hY'sol : GPoly.toPoly M₁ D * (Y.eraseLead)′ +
+        (C gK * GPoly.toPoly M₁ D - (GPoly.toPoly M₁ D)′) * Y.eraseLead =
+        GPoly.toPoly M₁ (GPoly.sub (ops₁g R) Ap (GPoly.add (ops₁g R)
+          (GPoly.mul (ops₁g R) D (GPoly.derivT (ops₁g R) [(En₁, Ed₁)]
+            (GPoly.monomial (ops₁g R) d ((ops₁g R).mul Lc (Yz, Gz)))))
+          (GPoly.mul (ops₁g R) P₀ (GPoly.monomial (ops₁g R) d ((ops₁g R).mul Lc (Yz, Gz)))))) := by
+      simp only [GPoly.toPoly_sub, GPoly.toPoly_add, GPoly.toPoly_mul]
+      rw [toPoly_derivT_η ι h0 hD hD₂, hYd, ← hY, hP₀, ← Y.self_sub_C_mul_X_pow, map_sub]
+      ring
+    rcases Y.eraseLead_natDegree_lt_or_eraseLead_eq_zero with hlt' | hz'
+    · exact ih _ _ Y.eraseLead (by omega) (by rw [hP₀]; exact hY'sol)
+    · rw [hz'] at hY'sol
+      simp only [map_zero, mul_zero, add_zero] at hY'sol
+      apply rdePolyPrimAuxW_isSome_of_zero
+      exact (GPoly.isZero_iff M₁ _).mpr hY'sol.symm
+
+include h0 hD in
+/-- **Completeness of `rdePrimW`**: if `y′ + g y = A / D` has a solution in `K₂`, the solver finds
+one. -/
+theorem rdePrimW_complete (hD₂ : ∀ P : K₁[X], P′ = implicitDeriv (C (CPoly.ev K₁ ι (En₁, Ed₁))) P)
+    (hconst₂ : ∀ P : K₁[X], P′ = 0 → ∃ e : K₁, P = C e)
+    (gq : GFrac R) (μ : CPoly R)
+    (hGn0 : CPoly.toPoly gq.1 ≠ 0) (hGd0 : CPoly.toPoly gq.2 ≠ 0)
+    (hcop : IsCoprime (CPoly.toPoly gq.1) (CPoly.toPoly gq.2)) (hμ0 : CPoly.toPoly μ ≠ 0)
+    (hμ : ∃ q : R[X], (CPoly.toPoly μ).comp (CPoly.toPoly (CPoly.residuePolyW gq.1 gq.2)) =
+      CPoly.toPoly (CPoly.simplePart gq.2) * q)
+    (hgnl : ∀ e : K₁, e ≠ 0 → e′ + CPoly.ev K₁ ι gq * e ≠ 0) (A D : GPoly (GFrac R))
+    (hD0 : GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) D ≠ 0) (y : K₂)
+    (hy : y′ + φ₂ (C (CPoly.ev K₁ ι gq)) * y =
+      φ₂ (GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) A) /
+        φ₂ (GPoly.toPoly (M₁In (K₁ := K₁) ι h0 hD) D)) :
+    (rdePrimW En₁ Ed₁ gq μ A D).isSome = true := by
+  set M₁ := M₁In (K₁ := K₁) ι h0 hD with hM₁
+  have hnorm : ∀ p : K₁[X], Irreducible p → ¬p ∣ p′ := fun p hp ↦
+    not_dvd_deriv_of_irreducible_primitive (CPoly.ev K₁ ι (En₁, Ed₁)) hD₂ hconst₂ hp
+  obtain ⟨Y, hY⟩ := rde_denominator_regular (K := K₂) hnorm (φ₂ (C (CPoly.ev K₁ ι gq)))
+    (fun p hp ↦ algebraMap_mem_regularAt hp.prime _) _ _ hD0 y hy
+  have hpoly := rde_poly_of_rde (K := K₂) (C (CPoly.ev K₁ ι gq)) _ _ Y hD0 y hY hy
+  have hP₀ : GPoly.toPoly M₁ (rdeP₀W En₁ Ed₁ gq D) =
+      C (CPoly.ev K₁ ι gq) * GPoly.toPoly M₁ D - (GPoly.toPoly M₁ D)′ := by
+    rw [rdeP₀W, GPoly.toPoly_sub, GPoly.toPoly_smul, toPoly_derivT_η ι h0 hD hD₂, hM₁, sem_M₁In]
+  refine rdePolyPrimAuxW_complete ι h0 hD hD₂ gq μ hGn0 hGd0 hcop hμ0 hμ hgnl D _ hD0 hP₀ _ _ []
+    Y (by
+    rw [hP₀, GPoly.toPoly_mul]; exact hpoly) ?_
+  -- the degree bound
+  by_cases hY0 : Y = 0
+  · rw [hY0, natDegree_zero]; omega
+  obtain ⟨hdeg, -, -⟩ := rde_poly_top (CPoly.ev K₁ ι (En₁, Ed₁)) _ hD₂ hgnl (GPoly.toPoly M₁ D) Y
+    hD0 hY0
+  rw [hpoly, ← GPoly.toPoly_mul] at hdeg
+  have hne : GPoly.trim (ops₁g R) (GPoly.mul (ops₁g R) A D) ≠ [] := fun h ↦ by
+    have := (GPoly.trim_eq_nil_iff M₁ _).mp h
+    rw [this, natDegree_zero] at hdeg
+    exact hY0 (by
+      have : Y.natDegree = 0 := by omega
+      have h2 := hpoly
+      rw [← GPoly.toPoly_mul, (GPoly.trim_eq_nil_iff M₁ _).mp h] at h2
+      have := rde_poly_top (CPoly.ev K₁ ι (En₁, Ed₁)) _ hD₂ hgnl (GPoly.toPoly M₁ D) Y hD0 hY0
+      exact absurd h2 this.2.2)
+  have h1 := GPoly.length_trim M₁ hne
+  have hlen := GPoly.length_trim_le (O := ops₁g R) (GPoly.mul (ops₁g R) A D)
+  omega
+
+end Tower

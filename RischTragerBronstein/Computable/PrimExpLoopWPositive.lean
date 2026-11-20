@@ -1,0 +1,214 @@
+import RischTragerBronstein.Computable.PrimExpStepW
+import RischTragerBronstein.Computable.Prim2LoopGenPositive
+import RischTragerBronstein.Computable.Model2Of
+
+/-!
+# The `t₂`-loop over `R(x)(exp a)` read in `F₀ = R(x₀)(exp a)`, and the antiderivative it produces
+
+* `Tower.ModelEW.of`: the model hypotheses from the one-level data;
+* `Tower.primExpStepW_sound_F₀`: one level, for the values `valG` in an abstract field `F₀`;
+* `Tower.primExpLoopW_antiderivative`: with `t′ = W` in `K ⊇ F₀`,
+  `∑ Aₖ tᵏ = (prim2WGen …)′ + (A₀ - W · Q₁)`.
+-/
+
+open Polynomial IntermediateField
+
+set_option linter.unusedSectionVars false
+
+namespace Tower
+
+open Differential CPoly
+
+section Of
+
+variable {R S K₁ K₂ : Type*} [Field R] [DecidableEq R] [CharZero R] [Field S] [DecidableEq S]
+variable [CharZero S]
+variable [Differential S] [Differential S[X]] [Field K₁] [CharZero K₁] [Algebra S[X] K₁]
+variable [IsFractionRing S[X] K₁] [Differential K₁] [DifferentialAlgebra S[X] K₁]
+variable [Differential K₁[X]] [Field K₂] [Differential K₂] [Algebra K₁[X] K₂]
+variable [IsFractionRing K₁[X] K₂] [DifferentialAlgebra K₁[X] K₂]
+
+theorem ModelEW.of (ι : R →+* S) {a : CPoly R} (hD : ∀ P : S[X], P′ = derivative P)
+    (ha : trim (deriv a) ≠ [])
+    (hD₂ : ∀ P : K₁[X], P′ = implicitDeriv (C (ηa ι a) * X) P) :
+    ModelEW (K₁ := K₁) (K₂ := K₂) ι a := by
+  have hKconst := const_of_model (K₁ := K₁) hD
+  have hA'0 : (derivative (toPoly a)).map ι ≠ 0 := by
+    rw [Ne, Polynomial.map_eq_zero_iff ι.injective, ← toPoly_deriv]
+    exact fun h ↦ ha ((trim_eq_nil_iff _).mpr h)
+  have hdega : 1 ≤ ((toPoly a).map ι).natDegree := by
+    by_contra hlt
+    have h0' : derivative ((toPoly a).map ι) = 0 := by
+      rw [eq_C_of_natDegree_eq_zero (by omega : ((toPoly a).map ι).natDegree = 0), derivative_C]
+    rw [derivative_map] at h0'
+    exact hA'0 h0'
+  have hconst : ∀ (P : K₁[X]) (n : ℕ), P′ * X ^ n = P * (X ^ n)′ → ∃ e : K₁, P = C e * X ^ n :=
+    exp_polynomial_no_new_constants hD ((toPoly a).map ι) hdega
+      (fun P ↦ by rw [hD₂, ηa, derivative_map])
+  refine ⟨hD, ha, hD₂, hconst, fun y hy ↦ ?_⟩
+  have hnorm' := normal_of_hconst (ηa ι a) hD₂ hconst
+  have hη := exp_pow_not_in_base (K₁ := K₁) ι hD a ha
+  obtain ⟨-, P, rfl⟩ := deriv_eq_laurent_add_proper_exp (K := K₂) (ηa ι a) hD₂ hnorm' hη
+    0 0 1 0 squarefree_one (fun h ↦ not_isUnit_X (isUnit_of_dvd_one h))
+    (by rw [degree_zero, degree_one]; exact WithBot.bot_lt_coe 0) y (by rw [hy]; simp)
+  rw [pow_zero, div_one] at hy ⊢
+  have hP0 : P′ = 0 := by
+    rw [deriv_algebraMap] at hy
+    have hinj : Function.Injective (algebraMap K₁[X] K₂) := IsFractionRing.injective K₁[X] K₂
+    exact hinj (by rw [hy, map_zero])
+  obtain ⟨e, rfl⟩ := hconst P 0 (by rw [hP0, pow_zero]; simp)
+  rw [pow_zero, mul_one] at hP0 ⊢
+  have he : e′ = 0 := by
+    rw [hD₂, implicitDeriv_C] at hP0
+    exact C_eq_zero.mp hP0
+  obtain ⟨b, rfl⟩ := hKconst e he
+  exact ⟨b, rfl⟩
+
+end Of
+
+variable {R F₀ : Type*} [Field R] [DecidableEq R] [CharZero R] [Field F₀]
+variable [Algebra R F₀] [Differential F₀]
+
+set_option maxHeartbeats 1600000 in
+theorem primExpStepW_sound_F₀ (hR : ∀ r : R, (algebraMap R F₀ r)′ = 0)
+    (x₀ t₁ : F₀) (hx₀ : x₀′ = 1) {a : CPoly R} (ha : trim (deriv a) ≠ [])
+    (ht₁0 : t₁ ≠ 0) (ht₁ : t₁′ = aeval x₀ (derivative (toPoly a)) * t₁)
+    (W : GFrac (GFrac R))
+    (k : ℕ) (Ak Q : GFrac (GFrac R)) {c : R} {Q' : GFrac (GFrac R)}
+    (h : primExpStepW a W k Ak Q = some (c, Q')) :
+    (valG x₀ t₁ Q')′ = valG x₀ t₁ Ak - ((k + 1 : ℕ) : F₀) * valG x₀ t₁ W * valG x₀ t₁ Q -
+      algebraMap R F₀ c * valG x₀ t₁ W := by
+  classical
+  have hcharF₀ : CharZero F₀ := charZero_of_injective_algebraMap (algebraMap R F₀).injective
+  let _ : Differential R := ⟨0⟩
+  have h0 : ∀ r : R, r′ = 0 := fun _ ↦ rfl
+  have hDAR : DifferentialAlgebra R F₀ := ⟨fun r ↦ by rw [hR, h0, map_zero]⟩
+  -- level one: `R(x₀) ⊆ F₀`
+  have htr : Transcendental R x₀ :=
+    transcendental_of_deriv_ne_zero h0 (by rw [hx₀]; exact one_ne_zero)
+  have hw : x₀′ = aeval x₀ (1 : R[X]) := by rw [hx₀, map_one]
+  let _ := algebraAdjoinSimple (F := R) x₀
+  let _ : Differential R[X] := polynomialOfDeriv (1 : R[X])
+  let _ : Differential R⟮x₀⟯ := differentialOfDerivClosed (derivClosed_adjoin_simple x₀ 1 hw)
+  have hFR : IsFractionRing R[X] R⟮x₀⟯ := isFractionRing_adjoin_simple x₀ htr
+  have hDA : DifferentialAlgebra R[X] R⟮x₀⟯ := differentialAlgebra_adjoin_simple x₀ 1 hw
+  have hDA' : DifferentialAlgebra R⟮x₀⟯ F₀ :=
+    differentialAlgebra_of_derivClosed (derivClosed_adjoin_simple x₀ 1 hw)
+  have hchar1 : CharZero R⟮x₀⟯ := charZero_of_injective_algebraMap (algebraMap R R⟮x₀⟯).injective
+  have hD : ∀ P : R[X], P′ = derivative P := fun P ↦ implicitDeriv_one_of_trivial h0 P
+  have hcoe : ∀ P : R[X], ((algebraMap R[X] R⟮x₀⟯ P : R⟮x₀⟯) : F₀) = aeval x₀ P :=
+    algebraMap_adjoinSimple x₀
+  have hevc : ∀ q : CPoly R × CPoly R, algebraMap R⟮x₀⟯ F₀ (ev R⟮x₀⟯ (RingHom.id R) q) =
+      aeval x₀ (toPoly q.1) / aeval x₀ (toPoly q.2) := fun q ↦ by
+    change ((ev R⟮x₀⟯ (RingHom.id R) q : R⟮x₀⟯) : F₀) = _
+    simp only [ev, Polynomial.map_id, IntermediateField.coe_div, hcoe]
+  set η₁' : R⟮x₀⟯ := algebraMap R[X] R⟮x₀⟯ (derivative (toPoly a)) with hη₁'
+  have hη₁E : algebraMap R⟮x₀⟯ F₀ η₁' = aeval x₀ (derivative (toPoly a)) := hcoe _
+  have ht₁' : t₁′ = algebraMap R⟮x₀⟯ F₀ η₁' * t₁ := by rw [ht₁, hη₁E]
+  have hA'0 : derivative (toPoly a) ≠ 0 := fun h' ↦ ha ((trim_eq_nil_iff _).mpr (by
+    rw [toPoly_deriv, h']))
+  have htr1 : Transcendental R⟮x₀⟯ t₁ := by
+    refine transcendental_exponential η₁' ht₁0 ht₁' fun n hn b hb ↦ ?_
+    refine rde_homogeneous' (K := R⟮x₀⟯) hD (-(C (n : R) * derivative (toPoly a)))
+      (neg_ne_zero.mpr (mul_ne_zero (C_ne_zero.mpr (Nat.cast_ne_zero.mpr hn)) hA'0)) b (by
+        rw [hb, map_neg, map_mul, ← hη₁']
+        have : algebraMap R[X] R⟮x₀⟯ (C (n : R)) = (n : R⟮x₀⟯) := by
+          rw [show (C (n : R) : R[X]) = (n : R[X]) from map_natCast C n, map_natCast]
+        rw [this]
+        ring)
+  have hw1 : t₁′ = aeval t₁ (C η₁' * X : (R⟮x₀⟯)[X]) := by
+    rw [map_mul, aeval_C, aeval_X, ht₁']
+  let _ := algebraAdjoinSimple (F := R⟮x₀⟯) t₁
+  let _ : Differential (R⟮x₀⟯)[X] := polynomialOfDeriv (C η₁' * X)
+  let _ : Differential (R⟮x₀⟯)⟮t₁⟯ :=
+    differentialOfDerivClosed (derivClosed_adjoin_simple t₁ (C η₁' * X) hw1)
+  have hFR2 : IsFractionRing (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ := isFractionRing_adjoin_simple t₁ htr1
+  have hDA2 : DifferentialAlgebra (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ :=
+    differentialAlgebra_adjoin_simple t₁ (C η₁' * X) hw1
+  have hηa : ηa (K₁ := R⟮x₀⟯) (RingHom.id R) a = η₁' := by
+    rw [ηa, Polynomial.map_id]
+  have hD₂ : ∀ P : (R⟮x₀⟯)[X], P′ = implicitDeriv (C (ηa (K₁ := R⟮x₀⟯) (RingHom.id R) a) * X) P :=
+    fun P ↦ by rw [hηa]; rfl
+  have hM : ModelEW (K₁ := R⟮x₀⟯) (K₂ := (R⟮x₀⟯)⟮t₁⟯) (RingHom.id R) a :=
+    ModelEW.of (RingHom.id R) hD ha hD₂
+  have hsound := primExpStepW_sound (K₁ := R⟮x₀⟯) (K₂ := (R⟮x₀⟯)⟮t₁⟯) (RingHom.id R) h0 hM W k
+    Ak Q h
+  -- values of codes in `F₀`
+  have hvalP : ∀ q : GPoly (GFrac R), ((algebraMap (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯
+      (GPoly.toPoly (M₁In (K₁ := R⟮x₀⟯) (RingHom.id R) h0 hD) q) : (R⟮x₀⟯)⟮t₁⟯) : F₀) =
+      valP x₀ t₁ q := fun q ↦ by
+    rw [algebraMap_adjoinSimple, GPoly.toPoly_eq_sum_range _ q ([], [1])]
+    simp only [valP, map_sum, map_mul, map_pow, aeval_C, aeval_X, sem_M₁In, hevc]
+  have hsemG : ∀ q : GFrac (GFrac R),
+      (((hM.cf (RingHom.id R) h0).sem q : (R⟮x₀⟯)⟮t₁⟯) : F₀) = valG x₀ t₁ q := fun q ↦ by
+    rw [ModelEW.cf, sem_M₂E, IntermediateField.coe_div, hvalP, hvalP, valG]
+  have := congrArg (fun z : (R⟮x₀⟯)⟮t₁⟯ ↦ (z : F₀)) hsound
+  have hderiv : ∀ y : (R⟮x₀⟯)⟮t₁⟯, ((y′ : (R⟮x₀⟯)⟮t₁⟯) : F₀) = (y : F₀)′ := fun _ ↦ rfl
+  have hnat : (((k + 1 : ℕ) : (R⟮x₀⟯)⟮t₁⟯) : F₀) = ((k + 1 : ℕ) : F₀) := by
+    rw [← map_natCast (algebraMap (R⟮x₀⟯)⟮t₁⟯ F₀)]; rfl
+  have hcF : ((algebraMap (R⟮x₀⟯)[X] (R⟮x₀⟯)⟮t₁⟯ (C (algebraMap R[X] R⟮x₀⟯ (C c))) :
+      (R⟮x₀⟯)⟮t₁⟯) : F₀) = algebraMap R F₀ c := by
+    rw [algebraMap_adjoinSimple, aeval_C]
+    change ((algebraMap R[X] R⟮x₀⟯ (C c) : R⟮x₀⟯) : F₀) = _
+    rw [hcoe, aeval_C]
+  simp only [hderiv, AddSubgroupClass.coe_sub, MulMemClass.coe_mul, hsemG, hnat,
+    RingHom.id_apply, hcF] at this
+  exact this
+
+variable {K : Type*} [Field K] [Algebra F₀ K] [Differential K] [DifferentialAlgebra F₀ K]
+
+/-- **The result is an antiderivative** (primitive over exponential, polynomial part). -/
+theorem primExpLoopW_antiderivative (hR : ∀ r : R, (algebraMap R F₀ r)′ = 0)
+    (x₀ t₁ : F₀) (hx₀ : x₀′ = 1) {a : CPoly R} (ha : trim (deriv a) ≠ [])
+    (ht₁0 : t₁ ≠ 0) (ht₁ : t₁′ = aeval x₀ (derivative (toPoly a)) * t₁)
+    (W : GFrac (GFrac R)) (t : K)
+    (ht : t′ = algebraMap F₀ K (valG x₀ t₁ W))
+    (A : ℕ → GFrac (GFrac R)) (k : ℕ)
+    (Q : GFrac (GFrac R)) {L : List (R × GFrac (GFrac R))}
+    (hL : primExpLoopW a W A k Q = some L) :
+      (algebraMap F₀ K (valG x₀ t₁ Q))′ * t ^ (k + 1) +
+          ∑ j ∈ Finset.range (k + 1), algebraMap F₀ K (valG x₀ t₁ (A j)) * t ^ j =
+        (prim2WGen x₀ t₁ t (k + 1) Q L)′ + (algebraMap F₀ K (valG x₀ t₁ (A 0)) -
+          algebraMap F₀ K (valG x₀ t₁ W) * algebraMap F₀ K (valG x₀ t₁ (lastGen Q L))) := by
+  have hcharF₀ : CharZero F₀ := charZero_of_injective_algebraMap (algebraMap R F₀).injective
+  have hcharK : CharZero K := charZero_of_injective_algebraMap (algebraMap F₀ K).injective
+  induction k generalizing Q L with
+  | zero =>
+    simp only [primExpLoopW, Option.some.injEq] at hL
+    subst hL
+    rw [prim2WGen, lastGen, Derivation.leibniz, ht]
+    simp only [smul_eq_mul, zero_add, pow_one, Finset.range_one, Finset.sum_singleton, pow_zero,
+      mul_one]
+    ring
+  | succ k ih =>
+    simp only [primExpLoopW] at hL
+    cases hstep : primExpStepW a W (k + 1) (A (k + 1)) Q with
+    | none => rw [hstep] at hL; exact absurd hL (by simp)
+    | some cQ =>
+      obtain ⟨c, Q'⟩ := cQ
+      rw [hstep] at hL
+      simp only [Option.map_eq_some_iff] at hL
+      obtain ⟨L', hL', rfl⟩ := hL
+      have hsol := primExpStepW_sound_F₀ hR x₀ t₁ hx₀ ha ht₁0 ht₁ W (k + 1) (A (k + 1)) Q hstep
+      have hrec := ih Q' hL'
+      set γ : K := algebraMap F₀ K (algebraMap R F₀ (c / ((k + 1 + 1 : ℕ) : R))) with hγ
+      have hγ' : γ′ = 0 := by rw [hγ, deriv_algebraMap, hR, map_zero]
+      have hγc : ((k + 1 + 1 : ℕ) : K) * γ = algebraMap F₀ K (algebraMap R F₀ c) := by
+        rw [hγ, map_div₀, map_div₀, map_natCast, map_natCast]
+        exact mul_div_cancel₀ _ (Nat.cast_ne_zero.mpr (by omega))
+      set q : K := algebraMap F₀ K (valG x₀ t₁ Q) with hq
+      set η₂ : K := algebraMap F₀ K (valG x₀ t₁ W) with hη₂
+      have hX : ((q + γ) * t ^ (k + 1 + 1))′ = q′ * t ^ (k + 1 + 1) +
+          ((k + 1 + 1 : ℕ) : K) * (q + γ) * η₂ * t ^ (k + 1) := by
+        rw [Derivation.leibniz, map_add, hγ', Derivation.leibniz_pow, ht]
+        simp only [smul_eq_mul, nsmul_eq_mul, Nat.add_sub_cancel, add_zero]
+        ring
+      have hW : prim2WGen x₀ t₁ t (k + 1 + 1) Q ((c, Q') :: L') =
+          (q + γ) * t ^ (k + 1 + 1) + prim2WGen x₀ t₁ t (k + 1) Q' L' := rfl
+      have hsolK := congrArg (algebraMap F₀ K) hsol
+      rw [← deriv_algebraMap] at hsolK
+      simp only [map_sub, map_mul, map_natCast] at hsolK
+      rw [hW, lastGen, map_add, hX, Finset.sum_range_succ _ (k + 1)]
+      linear_combination hrec - t ^ (k + 1) * hsolK - η₂ * t ^ (k + 1) * hγc
+
+end Tower
