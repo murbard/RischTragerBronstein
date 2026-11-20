@@ -1899,3 +1899,10 @@ import RischTragerBronstein.Mixed.FrontSqrtPoleNCComplete
 import RischTragerBronstein.Mixed.KXInputCheck
 import RischTragerBronstein.Mixed.FrontSqrtPoleAccepted
 import RischTragerBronstein.Mixed.FrontSqrtPoleNCExamples
+import RischTragerBronstein.Mixed.KVIn
+import RischTragerBronstein.Mixed.FrontRootPole
+import RischTragerBronstein.Mixed.FrontRootPoleExamples
+import RischTragerBronstein.Mixed.FrontRootSumP
+import RischTragerBronstein.Mixed.FrontRootSumPExamples
+import RischTragerBronstein.Mixed.FrontRootAutoP
+import RischTragerBronstein.Mixed.FrontRootAutoPExamples
