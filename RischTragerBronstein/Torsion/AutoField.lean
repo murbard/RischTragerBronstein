@@ -76,6 +76,36 @@ def autoPairs (M : CPoly ℚ) [Fact (Irreducible (toPoly M))] (count : ℕ) : Li
     | some p, some q => some (p, q)
     | _, _ => none
 
+/-- The first `k` numbers `≥ i` satisfying `P`, among `fuel` candidates (a lazy
+`((List.range' i fuel).filter P).take k`). -/
+def scanTake (P : ℕ → Bool) : ℕ → ℕ → ℕ → List ℕ
+  | 0, _, _ => []
+  | _ + 1, _, 0 => []
+  | f + 1, i, k + 1 => if P i then i :: scanTake P f (i + 1) k else scanTake P f (i + 1) (k + 1)
+
+lemma scanTake_eq (P : ℕ → Bool) : ∀ (f i k : ℕ),
+    scanTake P f i k = ((List.range' i f).filter P).take k
+  | 0, _, _ => by simp [scanTake]
+  | _ + 1, _, 0 => by simp [scanTake]
+  | f + 1, i, k + 1 => by
+    rw [scanTake, List.range'_succ, List.filter_cons]
+    split_ifs with h
+    · rw [List.take_succ_cons, scanTake_eq P f (i + 1) k]
+    · rw [scanTake_eq P f (i + 1) (k + 1)]
+
+/-- `autoPairs` stopping at the first `2 count` primes: the compiled code. -/
+def autoPairsF (M : CPoly ℚ) [Fact (Irreducible (toPoly M))] (count : ℕ) : List (ℕ × ℕ) :=
+  let ps := scanTake (fun p ↦ decide (11 ≤ p) && decide p.Prime && (redAtM M p).isSome) 3000 0
+    (2 * count)
+  (List.range count).filterMap fun i ↦
+    match ps[2 * i]?, ps[2 * i + 1]? with
+    | some p, some q => some (p, q)
+    | _, _ => none
+
+@[csimp] theorem autoPairs_eq_autoPairsF : @autoPairs = @autoPairsF := by
+  funext M _ count
+  simp only [autoPairs, autoPairsF, scanTake_eq, List.range_eq_range']
+
 /-- One stage: the decision over `ℚ[γ]/(M)`, or the polynomial to adjoin (with `pqs = []`, the
 primes are chosen by `autoPairs`). -/
 def stageNF (fast : Bool) (M : CPoly ℚ) [Fact (Irreducible (toPoly M))] (kI : ℕ) (exs : List ℕ)

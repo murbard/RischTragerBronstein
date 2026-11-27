@@ -66,10 +66,9 @@ theorem kxSearch_correct (hmon : (toB [c0, [1]]).Monic)
     _ _ rs _ _ b hi
 
 /-- For suitable residue data, one search bound suffices at every level. Once reached, the
-correct answer persists. Completeness is relative to `MKT` over `ℚ` and all lower code fields. -/
+correct answer persists. Completeness is unconditional. -/
 theorem kxSearch_decides (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (m : ℕ)
-    (hQ : Manin.MKT ℚ) (hMK : ∀ j < m, Manin.MKT (KF [c0, [1]] j))
     (hn : T.n = m + 1) (hc : certC [c0, [1]] ks lv (m + 1) = true)
     {g : LC m} (hk : ks m = .exp g)
     (A : GPoly (LC m)) (hsqc : GPoly.squarefreeCheck (MO [c0, [1]] ks m) A = true)
@@ -85,7 +84,7 @@ theorem kxSearch_decides (hmon : (toB [c0, [1]]).Monic)
     ∃ rs : ℕ → ℕ, ∃ N0 b, (∀ N, N0 ≤ N → kxSearch c0 ks lv m g A B kt l cs rs N = some b) ∧
       (HasElementaryIntegral (T.ev (m + 1)
         ((B, kxDen [c0, [1]] ks m A kt l cs) : LC (m + 1)) * θ) ↔ b = true) := by
-  obtain ⟨rs, B0, hB⟩ := T.kxDecideNC_decides c0 hmon hdeg m hQ hMK hn hc hk A hsqc hdeg3 θ hθ
+  obtain ⟨rs, B0, hB⟩ := T.kxDecideNC_decides c0 hmon hdeg m hn hc hk A hsqc hdeg3 θ hθ
     hgen B kt l cs hr0 hok hrep hAw hBw hcsw hgw
   obtain ⟨N0, hN⟩ := hB B0 le_rfl
   obtain ⟨K0, hK⟩ := hN N0 le_rfl

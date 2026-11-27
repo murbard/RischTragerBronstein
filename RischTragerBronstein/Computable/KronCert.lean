@@ -1,4 +1,5 @@
 import RischTragerBronstein.Computable.Kronecker
+import RischTragerBronstein.Computable.DegCert
 import RischTragerBronstein.Computable.NullSpace
 
 /-!
@@ -43,6 +44,43 @@ def findFactorDeg (F : CPoly ℚ) (e : ℕ) : Option (CPoly ℚ) :=
 /-- A non-trivial factor, if any. -/
 def findFactor (F : CPoly ℚ) : Option (CPoly ℚ) :=
   (List.range (degC F / 2)).findSome? fun e ↦ findFactorDeg F (e + 1)
+
+lemma findFactorDeg_some {F : CPoly ℚ} {e : ℕ} {g : CPoly ℚ} (h : findFactorDeg F e = some g) :
+    toPoly g ∣ toPoly F ∧ (toPoly g).natDegree = e := by
+  unfold findFactorDeg at h
+  obtain ⟨ds, -, hds⟩ := List.exists_of_findSome?_eq_some h
+  dsimp only at hds
+  split_ifs at hds with h1 h2
+  rw [Option.some.injEq] at hds
+  rw [hds] at h2
+  clear hds h
+  simp only [Bool.and_eq_true, beq_iff_eq] at h2
+  obtain ⟨⟨⟨hl, -⟩, -⟩, hz⟩ := h2
+  have htr : trim g ≠ [] := fun h0 ↦ by rw [h0] at hl; simp at hl
+  refine ⟨?_, by rw [length_trim htr] at hl; omega⟩
+  have hsp := divMod_spec F g
+  rw [(isZero_iff _).mp hz, add_zero] at hsp
+  exact ⟨toPoly (divMod F g).1, by rw [hsp, mul_comm]⟩
+
+/-- `findFactor` skipping the degrees excluded modulo primes: the compiled code. -/
+def findFactorF (F : CPoly ℚ) : Option (CPoly ℚ) :=
+  let Ss := DegCert.degSets F
+  (List.range (degC F / 2)).findSome? fun e ↦
+    if DegCert.degExcluded Ss (e + 1) then none else findFactorDeg F (e + 1)
+
+@[csimp] theorem findFactor_eq_findFactorF : @findFactor = @findFactorF := by
+  funext F
+  unfold findFactor findFactorF
+  dsimp only
+  congr 1
+  funext e
+  split_ifs with h
+  · cases hf : findFactorDeg F (e + 1) with
+    | none => rfl
+    | some g =>
+      obtain ⟨hdvd, hdeg⟩ := findFactorDeg_some hf
+      exact absurd hdeg (DegCert.degExcluded_sound F (e + 1) h _ hdvd)
+  · rfl
 
 /-- The primitive integral associate. -/
 def primInt (g : CPoly ℚ) : CPoly ℚ :=

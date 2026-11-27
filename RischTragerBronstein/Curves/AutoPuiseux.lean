@@ -32,6 +32,14 @@ def sDivT (p q : CPoly F) (L : ℕ) : CPoly F := divTrunc p q L
 def evalBT (H : BPoly F) (Z : CPoly F) (L : ℕ) : CPoly F :=
   H.foldr (fun c acc ↦ (List.range L).map fun m ↦ c.getD m 0 + (sMulT Z acc L).getD m 0) []
 
+/-- `evalBT` with each truncated product computed once: the compiled code. -/
+def evalBTF (H : BPoly F) (Z : CPoly F) (L : ℕ) : CPoly F :=
+  H.foldr (fun c acc ↦
+    let s := sMulT Z acc L
+    (List.range L).map fun m ↦ c.getD m 0 + s.getD m 0) []
+
+@[csimp] theorem evalBT_eq_evalBTF : @evalBT = @evalBTF := rfl
+
 /-- `P(Tᵍ)`. -/
 def subsPow (P : CPoly F) (q : ℕ) : CPoly F :=
   (List.range ((P.length - 1) * q + 1)).map fun m ↦ if m % q = 0 then P.getD (m / q) 0 else 0
@@ -54,6 +62,27 @@ def newtonT (H : BPoly F) (L : ℕ) : ℕ → CPoly F → CPoly F
     let V := evalBT H Z L
     let D := evalBT (derivYB H) Z L
     newtonT H L k ((List.range L).map fun m ↦ Z.getD m 0 - (sDivT V D L).getD m 0)
+
+/-- `newtonT` with each truncated quotient computed once: the compiled code. -/
+def newtonTF (H : BPoly F) (L : ℕ) : ℕ → CPoly F → CPoly F
+  | 0, Z => Z
+  | k + 1, Z =>
+    let V := evalBT H Z L
+    let D := evalBT (derivYB H) Z L
+    let q := sDivT V D L
+    newtonTF H L k ((List.range L).map fun m ↦ Z.getD m 0 - q.getD m 0)
+
+omit [DecidableEq F] in
+theorem newtonT_eq_newtonTF' (H : BPoly F) (L : ℕ) :
+    ∀ (k : ℕ) (Z : CPoly F), newtonT H L k Z = newtonTF H L k Z
+  | 0, _ => rfl
+  | k + 1, Z => by
+    rw [newtonT, newtonTF]
+    exact newtonT_eq_newtonTF' H L k _
+
+@[csimp] theorem newtonT_eq_newtonTF : @newtonT = @newtonTF := by
+  funext F _ H L k Z
+  exact newtonT_eq_newtonTF' H L k Z
 
 end Series
 

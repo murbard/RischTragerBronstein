@@ -5,8 +5,8 @@ import RischTragerBronstein.Mixed.KXInputCheck
 # Eventual decisions for accepted cubic expressions
 
 `frontSqrtPCubicCheck` runs the pole parser with an input-checking backend. It accepts only
-exponential top levels and cubic data covered by the completeness theorem. Subject to `MKT`,
-passing this executable check guarantees eventual success of the automatic expression search.
+exponential top levels and cubic data covered by the completeness theorem. Passing this
+executable check guarantees (unconditionally) eventual success of the automatic expression search.
 The check itself does not decide whether the integral is elementary.
 -/
 
@@ -35,12 +35,10 @@ def frontSqrtPCubicCheck (E a e1 : EE) (cs : List EE) : Bool :=
 variable {Cc L : Type u} [Field Cc] [Field L] [Algebra Cc L] [Differential Cc]
   [Differential L] [DifferentialAlgebra Cc L] [CharZero Cc] [CharZero L]
 
-/-- An accepted cubic expression has a successful finite parameter choice under `MKT`. -/
+/-- An accepted cubic expression has a successful finite parameter choice. -/
 theorem frontSqrtPCubicCheck_attempt (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (E a e1 : EE) (cs : List EE)
     (hcheck : frontSqrtPCubicCheck c0 E a e1 cs = true)
-    (hQ : Manin.MKT ℚ)
-    (hMK : ∀ j < E.nodesOf.length - 1, Manin.MKT (KF [c0, [1]] j))
     (T : MTower [c0, [1]] (ksOf [c0, [1]] E) Cc L) (hn : T.n = E.nodesOf.length) (θ : L)
     (hθ : θ ^ 2 = evE [c0, [1]] T E.nodesOf a)
     (hgen : ∀ z : L, z ∈ IntermediateField.adjoin (T.F E.nodesOf.length) {θ}) :
@@ -52,7 +50,7 @@ theorem frontSqrtPCubicCheck_attempt (hmon : (toB [c0, [1]]).Monic)
     rcases h0 : E.nodesOf.length with _ | m
     · simp [h0] at hcheck
     · exact ⟨m, rfl⟩
-  rw [hlen] at hcheck hn hgen hMK
+  rw [hlen] at hcheck hn hgen
   dsimp only at hcheck
   rcases hk : ksOf [c0, [1]] E m with η | g
   · simp [hk] at hcheck
@@ -116,8 +114,7 @@ theorem frontSqrtPCubicCheck_attempt (hmon : (toB [c0, [1]]).Monic)
     Option.some.inj hb
   obtain ⟨hdeg3, hr0, hok, hrep, hAw, hBw, hcsw, hgw⟩ :=
     (kxInputCheck_spec c0 (ksOf [c0, [1]] E) m g A B st.2 l cq).mp hinput
-  obtain ⟨rs, Bd, hBd⟩ := T.kxDecideNC_decides c0 hmon hdeg m hQ
-    (fun j hj ↦ hMK j (by omega)) hn hc hk A hsqc hdeg3 θ hθA hgen B st.2 l cq
+  obtain ⟨rs, Bd, hBd⟩ := T.kxDecideNC_decides c0 hmon hdeg m hn hc hk A hsqc hdeg3 θ hθA hgen B st.2 l cq
       hr0 hok hrep hAw hBw hcsw hgw
   obtain ⟨N, hN⟩ := hBd Bd le_rfl
   obtain ⟨K, hK⟩ := hN N le_rfl
@@ -127,20 +124,18 @@ theorem frontSqrtPCubicCheck_attempt (hmon : (toB [c0, [1]]).Monic)
   simpa only [frontSqrtPNCE, frontSqrtPEWith, hlen, hcert, Bool.not_true,
     Bool.false_eq_true, ↓reduceIte, hqa, hq1, hcq, hd1, hd2, hD1, hk, hd3] using hb
 
-/-- The automatic expression search eventually decides every cubic input passing the check.
-Manin's kernel theorem is the only additional mathematical hypothesis beyond a realization. -/
+/-- The automatic expression search eventually decides every cubic input passing the check; no
+mathematical hypothesis beyond a realization. -/
 theorem frontSqrtPAutoE_decides (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (E a e1 : EE) (cs : List EE)
     (hcheck : frontSqrtPCubicCheck c0 E a e1 cs = true)
-    (hQ : Manin.MKT ℚ)
-    (hMK : ∀ j < E.nodesOf.length - 1, Manin.MKT (KF [c0, [1]] j))
     (T : MTower [c0, [1]] (ksOf [c0, [1]] E) Cc L) (hn : T.n = E.nodesOf.length) (θ : L)
     (hθ : θ ^ 2 = evE [c0, [1]] T E.nodesOf a)
     (hgen : ∀ z : L, z ∈ IntermediateField.adjoin (T.F E.nodesOf.length) {θ}) :
     ∃ N0 b, (∀ N, N0 ≤ N → frontSqrtPAutoE c0 E a e1 cs N = some b) ∧
       (HasElementaryIntegral (evE [c0, [1]] T E.nodesOf e1 * θ) ↔ b = true) := by
   obtain ⟨Bd, rs, nmax, kmax, b, hb⟩ :=
-    frontSqrtPCubicCheck_attempt c0 hmon hdeg E a e1 cs hcheck hQ hMK T hn θ hθ hgen
+    frontSqrtPCubicCheck_attempt c0 hmon hdeg E a e1 cs hcheck T hn θ hθ hgen
   obtain ⟨⟨N0, hN⟩, hs⟩ := frontSqrtPAutoE_decides_of_attempt c0 hmon hdeg E a e1 cs
     Bd rs nmax kmax b hb T hn θ hθ hgen
   exact ⟨N0, b, hN, hs⟩
@@ -149,14 +144,12 @@ theorem frontSqrtPAutoE_decides (hmon : (toB [c0, [1]]).Monic)
 theorem frontSqrtPAuto_decides (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (a e1 : EE) (cs : List EE)
     (hcheck : frontSqrtPCubicCheck c0 (spE a e1 cs) a e1 cs = true)
-    (hQ : Manin.MKT ℚ)
-    (hMK : ∀ j < (spE a e1 cs).nodesOf.length - 1, Manin.MKT (KF [c0, [1]] j))
     (T : MTower [c0, [1]] (ksOf [c0, [1]] (spE a e1 cs)) Cc L)
     (hn : T.n = (spE a e1 cs).nodesOf.length) (θ : L)
     (hθ : θ ^ 2 = evE [c0, [1]] T (spE a e1 cs).nodesOf a)
     (hgen : ∀ z : L, z ∈ IntermediateField.adjoin (T.F (spE a e1 cs).nodesOf.length) {θ}) :
     ∃ N0 b, (∀ N, N0 ≤ N → frontSqrtPAuto c0 a e1 cs N = some b) ∧
       (HasElementaryIntegral (evE [c0, [1]] T (spE a e1 cs).nodesOf e1 * θ) ↔ b = true) :=
-  frontSqrtPAutoE_decides c0 hmon hdeg _ a e1 cs hcheck hQ hMK T hn θ hθ hgen
+  frontSqrtPAutoE_decides c0 hmon hdeg _ a e1 cs hcheck T hn θ hθ hgen
 
 end Curves.MT.Front

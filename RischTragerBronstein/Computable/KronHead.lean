@@ -1,3 +1,4 @@
+import RischTragerBronstein.Computable.KronFast
 import RischTragerBronstein.Computable.KronComplete
 
 /-!

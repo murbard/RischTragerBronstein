@@ -3,10 +3,11 @@ import RischTragerBronstein.Mixed.KXNonConstRec
 /-!
 # Non-constant curves at the levels `m + 1`: the decision without shape conditions
 
-`kxDecideNCS3_decides`: with sound and complete recursive checks over `Kₘ` (`RecS`, `RecC`) and
-Manin's kernel theorem over `Kₘ`, the decider `kxDecideNCS3` answers for all large bounds, and
-correctly. No condition on the short models is needed: curves with non-constant `j` go to Manin,
-non-trivial twists to heights, curves constant up to scaling descend to `Kₘ` (`stepI`).
+`kxDecideNCS3_decides`: with sound and complete recursive checks over `Kₘ` (`RecS`, `RecC`), the
+decider `kxDecideNCS3` answers for all large bounds, and correctly — unconditionally. No condition
+on the short models is needed: curves not constant up to scaling have a height certificate
+(`ExH.certQ_exists_nc`; Manin certificates are only a fast path), curves constant up to scaling
+descend to `Kₘ` (`stepI`).
 -/
 
 open Polynomial Differential IntermediateField Classical
@@ -49,7 +50,6 @@ theorem kxDecideNCS3_decides (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree 
     (c0f : CPoly ℚ) (hFc : Fc = [c0f, [1]])
     (hAw : ∀ a ∈ A, WFm (MO Fc ks m) a) (hBw : ∀ b ∈ B, WFm (MO Fc ks m) b)
     (hcsw : ∀ c ∈ cs, WFm (MO Fc ks m) c) (hgw : WFm (MO Fc ks m) g)
-    (hM : Manin.MKT (KF Fc m))
     (hsqFc : sqOK Fc = true) :
     ∃ rs : ℕ → ℕ, ∃ B0, ∀ Bd, B0 ≤ Bd → ∃ N0, ∀ nmax, N0 ≤ nmax → ∃ K0, ∀ kmax, K0 ≤ kmax →
       ∃ b, kxDecideNCS3 Fc ks lv m rec rec1 g A B kt l cs (primesBelow Bd) Bd rs nmax kmax = some b ∧
@@ -203,7 +203,7 @@ theorem kxDecideNCS3_decides (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree 
         obtain ⟨q, hq⟩ := Option.isSome_iff_exists.mp h
         exact ⟨q, (ratOfK_spec Fc hq).symm⟩
       · rintro ⟨q, rfl⟩; rw [ratOfK_ratCast]; rfl
-    obtain ⟨K0, hK0⟩ := stepI_complete hM hRat hrecC _ _ _ _ (disc_of_chkT0S hchk0) PD PZ hRD hRZ hind
+    obtain ⟨K0, hK0⟩ := stepI_complete hrecC _ _ _ _ (disc_of_chkT0S hchk0) PD PZ hRD hRZ hind
     refine ⟨0, fun nmax _ ↦ ⟨K0, fun kmax hkm ↦ kxDecideNCS3_isSome_of (lv := lv) m rec rec1 g A B kt
       l cs _ _ rs nmax kmax (Or.inr (Or.inl ?_))⟩⟩
     simp only [kxMWOKSR, Bool.and_eq_true, beq_iff_eq]
@@ -247,7 +247,7 @@ theorem kxDecideNCS3_decides (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree 
         simp only [discCS, CPoly.toPoly_add, CPoly.toPoly_smul, CPoly.toPoly_mul, map_ofNat,
           Polynomial.C_ofNat]; ring, ← CPoly.isZero_iff] at h0'
       rw [h0'] at hdisc'; exact absurd hdisc' (by decide)
-    obtain ⟨K0, hK0⟩ := stepI1_complete hM hrec1C _ _ _ hΔq PD hRD hntPD
+    obtain ⟨K0, hK0⟩ := stepI1_complete hrec1C _ _ _ hΔq PD hRD hntPD
     refine ⟨0, fun nmax _ ↦ ⟨K0, fun kmax hkm ↦ kxDecideNCS3_isSome_of (lv := lv) m rec rec1 g A B kt
       l cs _ _ rs nmax kmax (Or.inr (Or.inr ?_))⟩⟩
     simp only [kxMWOKCSR, Bool.and_eq_true, beq_iff_eq]
@@ -271,11 +271,9 @@ variable (c0 : CPoly ℚ) [Fact (Irreducible (toPoly (fKc [c0, [1]])))]
 
 set_option maxHeartbeats 4000000 in
 /-- **Non-constant curves at the levels `m + 1` over a linear base are decided by
-`kxDecideNCS3` with the recursive tower checks**, relative only to Manin's kernel theorem over `ℚ`
-and over `K₀, …, Kₘ`. -/
+`kxDecideNCS3` with the recursive tower checks**, unconditionally. -/
 theorem kxDecideNCS3_decides_lin (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (m : ℕ)
-    (hQ : Manin.MKT ℚ) (hMK : ∀ j ≤ m, Manin.MKT (KF [c0, [1]] j))
     (hn : T.n = m + 2) (hc : certC [c0, [1]] ks lv (m + 2) = true) {g : LC (m + 1)}
     (hk : ks (m + 1) = .exp g)
     (A : GPoly (LC (m + 1))) (hsqc : GPoly.squarefreeCheck (MO [c0, [1]] ks (m + 1)) A = true)
@@ -296,9 +294,9 @@ theorem kxDecideNCS3_decides_lin (hmon : (toB [c0, [1]]).Monic)
         (HasElementaryIntegral (T.ev (m + 2) ((B, kxDen [c0, [1]] ks (m + 1) A kt l cs) : LC (m + 2)) *
           θ) ↔ b = true) :=
   T.kxDecideNCS3_decides hmon hdeg m (recKF_sound c0 m) (recKF1_sound c0 m)
-    (recKF_complete c0 hQ m (fun j hj ↦ hMK j hj.le)) (recKF1_complete c0 hQ m (fun j hj ↦ hMK j hj.le))
+    (recKF_complete c0 m) (recKF1_complete c0 m)
     hn hc hk A hsqc hdegpos hcop hdeg3 θ hθ hgen B kt l cs hr0 hok hrep c0 rfl hAw hBw hcsw hgw
-    (hMK m le_rfl) (by simp [sqOK])
+    (by simp [sqOK])
 
 end Lin
 

@@ -1,3 +1,5 @@
+import RischTragerBronstein.Computable.KronFast
+import RischTragerBronstein.Computable.QuickFactor
 import RischTragerBronstein.Algebraic.NFAdjoin
 import RischTragerBronstein.Algebraic.EllDecideNF
 
@@ -214,6 +216,12 @@ def extStep (h : CPoly (NF f)) : Option (Σ' M : CPoly ℚ, Kron.irredQ M = true
   match firstGood f h with
   | none => none
   | some t =>
+    -- first the quick (untrusted) factor finder, its result checked; else the Kronecker search
+    if hQ : Kron.irredQ (Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t)) = true ∧
+        isZero (divMod (normPoly f h t)
+          (Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t))).2 = true then
+      some ⟨Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t), hQ.1⟩
+    else
     match (Kron.factorQ (Kron.degC (normPoly f h t) + 1) (normPoly f h t)).head? with
     | none => none
     | some M => if hM : Kron.irredQ M = true then some ⟨M, hM⟩ else none
@@ -223,6 +231,19 @@ def ExtProp (M : CPoly ℚ) (hM : Kron.irredQ M = true) (h : CPoly (NF f)) : Pro
   letI : Fact (Irreducible (toPoly M)) := ⟨Kron.irredQ_sound M hM⟩
   ∃ (θ' : NF M) (hθ' : aeval θ' (toPoly f) = 0) (α' : NF M),
     ((toPoly h).map (emb f M hθ')).eval α' = 0
+
+lemma extStep_eq (h : CPoly (NF f)) (t : ℚ) (ht : firstGood f h = some t) :
+    extStep f h =
+      if hQ : Kron.irredQ (Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t)) = true ∧
+          isZero (divMod (normPoly f h t)
+            (Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t))).2 = true then
+        some ⟨Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t), hQ.1⟩
+      else
+      match (Kron.factorQ (Kron.degC (normPoly f h t) + 1) (normPoly f h t)).head? with
+      | none => none
+      | some M => if hM : Kron.irredQ M = true then some ⟨M, hM⟩ else none := by
+  unfold extStep
+  rw [ht]
 
 set_option maxHeartbeats 3200000 in
 theorem extStep_spec (h : CPoly (NF f)) (hsq : Squarefree (toPoly h))
@@ -253,29 +274,37 @@ theorem extStep_spec (h : CPoly (NF f)) (hsq : Squarefree (toPoly h))
       exact hβ
     rw [hc, Polynomial.map_C, eval_C, map_eq_zero_iff _ (algebraMap ℚ QB).injective] at hev
     exact hN0 (by rw [hc, hev, C_0])
-  obtain ⟨hirr, k, hk, hNk⟩ := Kron.factorQ_spec (Kron.degC N + 1) N hNpos
-    (by rw [Kron.degC_eq N hN0]; omega)
-  obtain ⟨M, hMhead⟩ : ∃ M, (Kron.factorQ (Kron.degC N + 1) N).head? = some M := by
-    cases hl : Kron.factorQ (Kron.degC N + 1) N with
-    | nil =>
-      rw [hl] at hNk
-      simp at hNk
-      rw [hNk, natDegree_C] at hNpos; omega
-    | cons M t => exact ⟨M, rfl⟩
-  have hMmem : M ∈ Kron.factorQ (Kron.degC N + 1) N := List.mem_of_mem_head? hMhead
-  have hMirr : Kron.irredQ M = true := hirr M hMmem
-  have hMdvd : toPoly M ∣ toPoly N := by
-    rw [hNk]; exact Dvd.dvd.mul_left (List.dvd_prod (List.mem_map_of_mem hMmem)) _
-  refine ⟨M, hMirr, ?_, ?_⟩
-  · unfold extStep
-    rw [ht]
-    simp only
-    rw [hMhead]
-    simp only [dif_pos hMirr]
-  · letI : Fact (Irreducible (toPoly M)) := ⟨Kron.irredQ_sound M hMirr⟩
-    obtain ⟨⟨θ', α'⟩, hstep⟩ := Option.ne_none_iff_exists'.mp (adjoinStep_complete f M h t hN hMdvd)
-    obtain ⟨hθ', hα'⟩ := adjoinStep_sound f M h t hstep
-    exact ⟨θ', hθ', α', by rw [map_emb_eq]; exact hα'⟩
+  obtain ⟨M, hMirr, hMdvd, hext⟩ : ∃ (M : CPoly ℚ) (hM : Kron.irredQ M = true),
+      toPoly M ∣ toPoly N ∧ extStep f h = some ⟨M, hM⟩ := by
+    rw [extStep_eq f h t ht]
+    generalize Kron.quickIrr (Kron.degC (normPoly f h t) + 1) (normPoly f h t) = Q
+    by_cases hQ : Kron.irredQ Q = true ∧ isZero (divMod (normPoly f h t) Q).2 = true
+    · refine ⟨Q, hQ.1, ?_, by rw [dif_pos hQ]⟩
+      have hsp := divMod_spec (normPoly f h t) Q
+      rw [(isZero_iff _).mp hQ.2, add_zero] at hsp
+      exact ⟨toPoly (divMod (normPoly f h t) Q).1, by rw [mul_comm]; exact hsp⟩
+    · obtain ⟨hirr, k, hk, hNk⟩ := Kron.factorQ_spec (Kron.degC N + 1) N hNpos
+        (by rw [Kron.degC_eq N hN0]; omega)
+      obtain ⟨M, hMhead⟩ : ∃ M, (Kron.factorQ (Kron.degC N + 1) N).head? = some M := by
+        cases hl : Kron.factorQ (Kron.degC N + 1) N with
+        | nil =>
+          rw [hl] at hNk
+          simp at hNk
+          rw [hNk, natDegree_C] at hNpos; omega
+        | cons M t => exact ⟨M, rfl⟩
+      have hMmem : M ∈ Kron.factorQ (Kron.degC N + 1) N := List.mem_of_mem_head? hMhead
+      have hMirr : Kron.irredQ M = true := hirr M hMmem
+      refine ⟨M, hMirr, ?_, ?_⟩
+      · rw [hNk]; exact Dvd.dvd.mul_left (List.dvd_prod (List.mem_map_of_mem hMmem)) _
+      · have hMhead' : (Kron.factorQ (Kron.degC (normPoly f h t) + 1) (normPoly f h t)).head? =
+            some M := hMhead
+        rw [dif_neg hQ, hMhead']
+        simp only [dif_pos hMirr]
+  refine ⟨M, hMirr, hext, ?_⟩
+  letI : Fact (Irreducible (toPoly M)) := ⟨Kron.irredQ_sound M hMirr⟩
+  obtain ⟨⟨θ', α'⟩, hstep⟩ := Option.ne_none_iff_exists'.mp (adjoinStep_complete f M h t hN hMdvd)
+  obtain ⟨hθ', hα'⟩ := adjoinStep_sound f M h t hstep
+  exact ⟨θ', hθ', α', by rw [map_emb_eq]; exact hα'⟩
 
 end Ext
 

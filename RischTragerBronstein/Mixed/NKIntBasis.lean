@@ -1,3 +1,4 @@
+import RischTragerBronstein.Computable.KronFast
 import RischTragerBronstein.Mixed.NKShear
 import RischTragerBronstein.Torsion.AutoPipeline
 import RischTragerBronstein.Computable.KronCert

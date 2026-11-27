@@ -5,9 +5,8 @@ import RischTragerBronstein.Mixed.KX0NonConstDecide
 # One cubic decider at every exponential level over a linear base
 
 `kxDecideNC` dispatches to the level-zero procedure or to the recursive tower procedure.
-Every answer is correct without Manin's kernel theorem. Eventual completeness assumes `MKT`
-over `ℚ` and the code fields strictly below the input level, with the same input conditions
-as the two underlying procedures.
+Every answer is correct, and the decider is eventually complete (`kxDecideNC_decides`) with the
+same input conditions as the two underlying procedures — no Manin kernel hypothesis.
 -/
 
 open Polynomial Differential IntermediateField
@@ -39,7 +38,7 @@ variable {Cc L : Type u} [Field Cc] [Field L] [Algebra Cc L] [Differential Cc]
   [Differential L] [DifferentialAlgebra Cc L] [CharZero Cc] [CharZero L]
   (T : MTower [c0, [1]] ks Cc L)
 
-/-- Every answer of the unified decider is correct, without an `MKT` hypothesis. -/
+/-- Every answer of the unified decider is correct. -/
 theorem kxDecideNC_correct (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (m : ℕ)
     (hn : T.n = m + 1) (hc : certC [c0, [1]] ks lv (m + 1) = true)
@@ -62,10 +61,9 @@ theorem kxDecideNC_correct (hmon : (toB [c0, [1]]).Monic)
     exact T.kxDecideNCS3_correct hmon hdeg m (recKF_sound c0 m) (recKF1_sound c0 m) hn hc hk A
       hsqc hdegpos hcop θ hθ hgen B kt l cs ps bound rs nmax kmax b hdec
 
-/-- Completeness at every level, relative to Manin's kernel theorem below that level. -/
+/-- Completeness at every level (unconditional). -/
 theorem kxDecideNC_decides (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (m : ℕ)
-    (hQ : Manin.MKT ℚ) (hMK : ∀ j < m, Manin.MKT (KF [c0, [1]] j))
     (hn : T.n = m + 1) (hc : certC [c0, [1]] ks lv (m + 1) = true)
     {g : LC m} (hk : ks m = .exp g)
     (A : GPoly (LC m)) (hsqc : GPoly.squarefreeCheck (MO [c0, [1]] ks m) A = true)
@@ -88,9 +86,9 @@ theorem kxDecideNC_decides (hmon : (toB [c0, [1]]).Monic)
   cases m with
   | zero =>
     exact T.kxDecideNC0_decides hmon hdeg hn hc hk A hsqc hpos hcop hdeg3 θ hθ hgen B kt l cs
-      hr0 hok hrep c0 rfl hAw hBw hcsw hgw hQ
+      hr0 hok hrep c0 rfl hAw hBw hcsw hgw
   | succ m =>
-    exact T.kxDecideNCS3_decides_lin c0 hmon hdeg m hQ (fun j hj ↦ hMK j (by omega)) hn hc hk A
+    exact T.kxDecideNCS3_decides_lin c0 hmon hdeg m hn hc hk A
       hsqc hpos hcop hdeg3 θ hθ hgen B kt l cs hr0 hok hrep hAw hBw hcsw hgw
 
 end MTower

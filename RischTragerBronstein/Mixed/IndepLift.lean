@@ -188,21 +188,20 @@ theorem lvlI1_sound {rec1 : ℕ → K' → K' → Option (K' × K') → Bool} (h
     (rel_ΛL fr hfr a b p P hP) h n (by rw [← map_zsmul, hn, map_zero])
 
 /-- **Completeness of a level.** -/
-theorem lvlI_complete (hM : Manin.MKT K') {isRat : K' → Bool}
-    (hRat : ∀ x, isRat x = true ↔ ∃ q : ℚ, x = q)
+theorem lvlI_complete {isRat : K' → Bool}
     {rec : ℕ → K' → K' → Option (K' × K') → Option (K' × K') → Bool} (hrec : RecC rec) :
     RecC (lvlI fr isRat rec) := by
   intro a b p q P Q hΔ hP hQ hind
-  exact stepI_complete hM hRat hrec _ _ _ _ (liftM_disc fr hfr a b hΔ) (ΛL fr hfr a b P)
+  exact stepI_complete hrec _ _ _ _ (liftM_disc fr hfr a b hΔ) (ΛL fr hfr a b P)
     (ΛL fr hfr a b Q) (rel_ΛL fr hfr a b p P hP) (rel_ΛL fr hfr a b q Q hQ) (fun m n h ↦
       hind m n (ΛL_injective fr hfr a b (by rw [map_zsmul, map_zsmul]; exact h)))
 
 /-- **Completeness of a one-point level.** -/
-theorem lvlI1_complete (hM : Manin.MKT K')
+theorem lvlI1_complete
     {rec1 : ℕ → K' → K' → Option (K' × K') → Bool} (hrec : RecC1 rec1) :
     RecC1 (lvlI1 fr rec1) := by
   intro a b p P hΔ hP hnt
-  exact stepI1_complete hM hrec _ _ _ (liftM_disc fr hfr a b hΔ) (ΛL fr hfr a b P)
+  exact stepI1_complete hrec _ _ _ (liftM_disc fr hfr a b hΔ) (ΛL fr hfr a b P)
     (rel_ΛL fr hfr a b p P hP) (fun n h ↦
       hnt n (ΛL_injective fr hfr a b (by rw [map_zsmul, map_zero]; exact h)))
 

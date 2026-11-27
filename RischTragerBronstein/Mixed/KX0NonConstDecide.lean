@@ -1,13 +1,13 @@
 import RischTragerBronstein.Mixed.KX0NonConstRec
 
 /-!
-# Level `0`: the decision for all curves, relative to Manin's kernel theorem over `ℚ`
+# Level `0`: the decision for all curves
 
 **`kxDecideNC0_decides`**: for a cubic `A` over a linear base with arbitrary coefficients (constant
-or not, any `j`), `kxDecideNC0` answers for all large bounds, and correctly, assuming only
-`Manin.MKT ℚ`. In the Mordell–Weil case the recursive step `stepI` over `ℚ` covers non-constant `j`
-(Manin), non-trivial twists (heights), and curves constant up to scaling (descent to `E(ℚ)`,
-Néron–Tate heights).
+or not, any `j`), `kxDecideNC0` answers for all large bounds, and correctly, with no
+further hypothesis. In the Mordell–Weil case the recursive step `stepI` over `ℚ` covers curves not
+constant up to scaling (height certificates, `ExH.certQ_exists_nc`; Manin certificates as a fast
+path) and curves constant up to scaling (descent to `E(ℚ)`, Néron–Tate heights).
 -/
 
 open Polynomial Differential IntermediateField Classical
@@ -45,8 +45,7 @@ theorem kxDecideNC0_decides (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree =
     (hrep : kxConst Fc ks 0 g A B kt l cs = true → kxRepOK Fc ks 0 g A B kt l cs = true)
     (c0f : CPoly ℚ) (hFc : Fc = [c0f, [1]])
     (hAw : ∀ a ∈ A, codeOKb a = true) (hBw : ∀ b ∈ B, codeOKb b = true)
-    (hcsw : ∀ c ∈ cs, codeOKb c = true) (hgw : codeOKb g = true)
-    (hQ : Manin.MKT ℚ) :
+    (hcsw : ∀ c ∈ cs, codeOKb c = true) (hgw : codeOKb g = true) :
     ∃ rs : ℕ → ℕ, ∃ B0, ∀ Bd, B0 ≤ Bd → ∃ N0, ∀ nmax, N0 ≤ nmax → ∃ K0, ∀ kmax, K0 ≤ kmax →
       ∃ b, kxDecideNC0 Fc ks lv g A B kt l cs (primesBelow Bd) Bd rs nmax kmax = some b ∧
         (HasElementaryIntegral (T.ev 1 ((B, kxDen Fc ks 0 A kt l cs) : LC 1) * θ) ↔ b = true) := by
@@ -191,7 +190,7 @@ theorem kxDecideNC0_decides (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree =
       hD hz'ok hBq hc0 hs (by rw [hz'v, hzκ, hscc]) hmG hdisc
     obtain ⟨⟨PD, hRD⟩, ⟨PZ, hRZ⟩, hind⟩ := TE.indep_of_grpT0 (Fc.headD []) g A B kt l cs z' c _ _ _
       hFc' hTrE.of_succ k hchk0 rtsF hrlF hrsF b₀ hb₀ hns hns0 hgrp hP0
-    obtain ⟨K0, hK0⟩ := stepI_complete hQ hRat recQ_complete _ _ _ _ (disc_of_chkT0 hchk0) PD PZ hRD
+    obtain ⟨K0, hK0⟩ := stepI_complete recQ_complete _ _ _ _ (disc_of_chkT0 hchk0) PD PZ hRD
       hRZ (hind PD PZ hRD hRZ)
     refine ⟨K0, fun kmax hkm ↦ kxDecideNC0_isSome_of (lv := lv) g A B kt l cs _ _ rs nmax kmax
       (Or.inr (Or.inl ?_))⟩
@@ -215,7 +214,7 @@ theorem kxDecideNC0_decides (hmon : (toB Fc).Monic) (hdeg : (toB Fc).natDegree =
       hD hz'ok hBq hκ hs (by rw [hz'v, hzκ]) hmG hdisc
     obtain ⟨⟨PD, hRD⟩, hnt⟩ := TE.indep_of_grpC0 (Fc.headD []) g A B kt l cs z' _ _ _ κ
       hFc' hTrE.of_succ k hchk0 rtsF hrlF hrsF b₀ hb₀ hns hns0 hntF
-    obtain ⟨K0, hK0⟩ := stepI1_complete hQ recQ1_complete _ _ _ (disc_of_chkC0 hchk0) PD hRD
+    obtain ⟨K0, hK0⟩ := stepI1_complete recQ1_complete _ _ _ (disc_of_chkC0 hchk0) PD hRD
       (hnt PD hRD)
     refine ⟨K0, fun kmax hkm ↦ kxDecideNC0_isSome_of (lv := lv) g A B kt l cs _ _ rs nmax kmax
       (Or.inr (Or.inr ?_))⟩

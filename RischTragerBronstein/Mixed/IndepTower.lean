@@ -11,7 +11,7 @@ at `k + 1` it lifts to a polynomial model over `Kₖ(X)` (`RFC.canon`, `toRFHom`
 `ℚ` (`recQ`, Néron–Tate heights). `recKF1` is the one-point (infinite order) version.
 
 **`recKF_sound`**, **`recKF1_sound`**: unconditional. **`recKF_complete`**, **`recKF1_complete`**:
-under Manin's kernel theorem over `ℚ` and over `Kⱼ` for `j < k`.
+unconditionally (height certificates exist, `ExH.certQ_exists_nc`).
 -/
 
 open Polynomial CPoly Sup FFHeight
@@ -102,27 +102,22 @@ theorem recKF1_sound : ∀ k, RecS1 (recKF1 c0 k)
     let _ := algS c0 k
     exact lvlI1_sound (frS c0 k) (hfrS c0 k) (recKF1_sound k)
 
-/-- **Completeness of the recursive check** (Manin's kernel theorem below level `k`). -/
-theorem recKF_complete (hQ : Manin.MKT ℚ) :
-    ∀ k, (∀ j < k, Manin.MKT (KF L j)) → RecC (recKF c0 k)
-  | 0, _ => by
+/-- **Completeness of the recursive check** (unconditional). -/
+theorem recKF_complete : ∀ k, RecC (recKF c0 k)
+  | 0 => by
     let _ := alg0 c0
-    exact lvlI_complete (fr0 c0) (hfr0 c0) hQ (fun x ↦ ⟨fun _ ↦ ⟨x, (Rat.cast_id x).symm⟩,
-      fun _ ↦ rfl⟩) recQ_complete
-  | k + 1, hM => by
+    exact lvlI_complete (fr0 c0) (hfr0 c0) recQ_complete
+  | k + 1 => by
     let _ := algS c0 k
-    exact lvlI_complete (frS c0 k) (hfrS c0 k) (hM k (by omega)) (ratOfK_iff c0 k)
-      (recKF_complete hQ k (fun j hj ↦ hM j (by omega)))
+    exact lvlI_complete (frS c0 k) (hfrS c0 k) (recKF_complete k)
 
-/-- **Completeness of the recursive one-point check.** -/
-theorem recKF1_complete (hQ : Manin.MKT ℚ) :
-    ∀ k, (∀ j < k, Manin.MKT (KF L j)) → RecC1 (recKF1 c0 k)
-  | 0, _ => by
+/-- **Completeness of the recursive one-point check** (unconditional). -/
+theorem recKF1_complete : ∀ k, RecC1 (recKF1 c0 k)
+  | 0 => by
     let _ := alg0 c0
-    exact lvlI1_complete (fr0 c0) (hfr0 c0) hQ recQ1_complete
-  | k + 1, hM => by
+    exact lvlI1_complete (fr0 c0) (hfr0 c0) recQ1_complete
+  | k + 1 => by
     let _ := algS c0 k
-    exact lvlI1_complete (frS c0 k) (hfrS c0 k) (hM k (by omega))
-      (recKF1_complete hQ k (fun j hj ↦ hM j (by omega)))
+    exact lvlI1_complete (frS c0 k) (hfrS c0 k) (recKF1_complete k)
 
 end Curves.MT

@@ -6,8 +6,8 @@ import RischTragerBronstein.Computable.NatSeq
 # Automatic residue selection for the cubic decider
 
 `kxAuto` enumerates both finite residue data and the three search bounds. Its caller supplies
-only the input and one search bound. Every answer is correct, and completeness under `MKT`
-has no existential residue parameter. The finite dependence lemma is essential: this is an
+only the input and one search bound. Every answer is correct, and completeness (unconditional: no
+Manin kernel hypothesis) has no existential residue parameter. The finite dependence lemma is essential: this is an
 enumeration of sufficient finite prefixes, not an enumeration of all infinite functions.
 -/
 
@@ -47,7 +47,7 @@ variable {Cc L : Type u} [Field Cc] [Field L] [Algebra Cc L] [Differential Cc]
   [Differential L] [DifferentialAlgebra Cc L] [CharZero Cc] [CharZero L]
   (T : MTower [c0, [1]] ks Cc L)
 
-/-- Automatic residue selection preserves correctness without an `MKT` hypothesis. -/
+/-- Automatic residue selection preserves correctness. -/
 theorem kxAuto_correct (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (m : ℕ)
     (hn : T.n = m + 1) (hc : certC [c0, [1]] ks lv (m + 1) = true)
@@ -69,7 +69,6 @@ theorem kxAuto_correct (hmon : (toB [c0, [1]]).Monic)
 Only Manin's kernel theorem is assumed beyond the input conditions; no residue data is supplied. -/
 theorem kxAuto_decides (hmon : (toB [c0, [1]]).Monic)
     (hdeg : (toB [c0, [1]]).natDegree = cvN [c0, [1]]) (m : ℕ)
-    (hQ : Manin.MKT ℚ) (hMK : ∀ j < m, Manin.MKT (KF [c0, [1]] j))
     (hn : T.n = m + 1) (hc : certC [c0, [1]] ks lv (m + 1) = true)
     {g : LC m} (hk : ks m = .exp g)
     (A : GPoly (LC m)) (hsqc : GPoly.squarefreeCheck (MO [c0, [1]] ks m) A = true)
@@ -85,7 +84,7 @@ theorem kxAuto_decides (hmon : (toB [c0, [1]]).Monic)
     ∃ N0 b, (∀ N, N0 ≤ N → kxAuto c0 ks lv m g A B kt l cs N = some b) ∧
       (HasElementaryIntegral (T.ev (m + 1)
         ((B, kxDen [c0, [1]] ks m A kt l cs) : LC (m + 1)) * θ) ↔ b = true) := by
-  obtain ⟨rs, B0, hB⟩ := T.kxDecideNC_decides c0 hmon hdeg m hQ hMK hn hc hk A hsqc hdeg3 θ hθ
+  obtain ⟨rs, B0, hB⟩ := T.kxDecideNC_decides c0 hmon hdeg m hn hc hk A hsqc hdeg3 θ hθ
     hgen B kt l cs hr0 hok hrep hAw hBw hcsw hgw
   obtain ⟨N0, hN⟩ := hB B0 le_rfl
   obtain ⟨K0, hK⟩ := hN N0 le_rfl

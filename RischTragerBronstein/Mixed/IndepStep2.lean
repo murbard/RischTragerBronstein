@@ -1,13 +1,15 @@
 import RischTragerBronstein.Mixed.IndepStep
+import RischTragerBronstein.Mixed.ExHFinal
 
 /-!
 # Completeness of one step of the recursive independence certificate
 
-**`stepI_complete`** / **`stepI1_complete`**: under Manin's kernel theorem over `K` and with a
-complete recursive check over `K` (`RecC`, `RecC1`), independent points (a point of infinite order)
-on a short model over `K(X)` pass the step for all large `kmax`. The case split is
-`jConstB` (non-constant `j` ⇒ Manin), then `const_j_classify` (`IsoNT` ⇒ heights `certQ`;
-constant up to scaling ⇒ `csData`, `descPt`, recursion).
+**`stepI_complete`** / **`stepI1_complete`**: with a complete recursive check over `K` (`RecC`,
+`RecC1`), independent points (a point of infinite order) on a short model over `K(X)` pass the
+step for all large `kmax` — unconditionally. The case split is `ConstScale` (constant up to
+scaling ⇒ `csData`, `descPt`, recursion) or not, and then the height certificate `certQ` exists
+by `ExH.certQ_exists_nc` (exact canonical heights on points of everywhere non-singular reduction;
+no Manin kernel theorem, no Lang–Néron theorem).
 -/
 
 open Polynomial WeierstrassCurve WeierstrassCurve.Affine CPoly
@@ -52,20 +54,15 @@ variable {K : Type*} [Field K] [DecidableEq K] [CharZero K]
 open scoped Classical
 
 /-- **Completeness of a step.** -/
-theorem stepI_complete (hM : Manin.MKT K) {isRat : K → Bool}
-    (hRat : ∀ x, isRat x = true ↔ ∃ q : ℚ, x = q)
+theorem stepI_complete {isRat : K → Bool}
     {rec : ℕ → K → K → Option (K × K) → Option (K × K) → Bool} (hrec : RecC rec)
     (Ac Bc : CPoly K) (oD oZ : PtC K) (hΔ : 4 * toPoly Ac ^ 3 + 27 * toPoly Bc ^ 2 ≠ 0)
     (P Q : (shortW (toPoly Ac) (toPoly Bc)).toAffine.Point) (hP : Rel _ _ oD P) (hQ : Rel _ _ oZ Q)
     (hind : ∀ m n : ℤ, m • P = n • Q → m = 0 ∧ n = 0) :
     ∃ K0, ∀ kmax, K0 ≤ kmax → stepI isRat rec kmax Ac Bc oD oZ = true := by
-  cases hj : jConstB Ac Bc
-  · have hβ := bt_ne_of_jConstB hj hΔ
-    rcases Manin.manCertP_exists hM hRat Ac Bc hΔ hβ oD oZ P Q hP hQ hind with h | h
-    · exact ⟨0, fun k _ ↦ by simp [stepI, h]⟩
-    · exact ⟨0, fun k _ ↦ by simp [stepI, h]⟩
-  rcases const_j_classify _ _ hΔ (jConstB_true hj) with hiso | hcs
-  · obtain ⟨k, hk⟩ := certQ_exists_iso Ac Bc _ _ rfl rfl hΔ hiso oD oZ P Q hP hQ hind
+  by_cases hcs : ConstScale (toPoly Ac) (toPoly Bc)
+  swap
+  · obtain ⟨k, hk⟩ := ExH.certQ_exists_nc Ac _ _ rfl hΔ hcs oD oZ P Q hP hQ hind
     refine ⟨k + 1, fun kmax hkm ↦ ?_⟩
     have : (List.range kmax).any (fun k ↦ certQ Ac (max (cdeg Ac) (cdeg Bc)) k oD oZ) = true :=
       List.any_eq_true.mpr ⟨k, List.mem_range.mpr (by omega), by rw [cdeg_spec, cdeg_spec]; exact hk⟩
@@ -84,18 +81,15 @@ theorem stepI_complete (hM : Manin.MKT K) {isRat : K → Bool}
     simp only [hp, hq, hr, Bool.or_true]
 
 /-- **Completeness of a one-point step.** -/
-theorem stepI1_complete (hM : Manin.MKT K)
+theorem stepI1_complete
     {rec1 : ℕ → K → K → Option (K × K) → Bool} (hrec : RecC1 rec1)
     (Ac Bc : CPoly K) (oP : PtC K) (hΔ : 4 * toPoly Ac ^ 3 + 27 * toPoly Bc ^ 2 ≠ 0)
     (P : (shortW (toPoly Ac) (toPoly Bc)).toAffine.Point) (hP : Rel _ _ oP P)
     (hnt : ∀ n : ℤ, n • P = 0 → n = 0) :
     ∃ K0, ∀ kmax, K0 ≤ kmax → stepI1 rec1 kmax Ac Bc oP = true := by
-  cases hj : jConstB Ac Bc
-  · have hβ := bt_ne_of_jConstB hj hΔ
-    have h := Manin.manCert1P_exists hM Ac Bc hΔ hβ oP P hP hnt
-    exact ⟨0, fun k _ ↦ by simp [stepI1, h]⟩
-  rcases const_j_classify _ _ hΔ (jConstB_true hj) with hiso | hcs
-  · obtain ⟨k, hk⟩ := certQ1_exists_iso Ac _ _ rfl hΔ hiso oP P hP hnt
+  by_cases hcs : ConstScale (toPoly Ac) (toPoly Bc)
+  swap
+  · obtain ⟨k, hk⟩ := ExH.certQ1_exists_nc Ac _ _ rfl hΔ hcs oP P hP hnt
     refine ⟨k + 1, fun kmax hkm ↦ ?_⟩
     have : (List.range kmax).any (fun k ↦ certQ1 Ac (max (cdeg Ac) (cdeg Bc)) k oP) = true :=
       List.any_eq_true.mpr ⟨k, List.mem_range.mpr (by omega), by rw [cdeg_spec, cdeg_spec]; exact hk⟩
